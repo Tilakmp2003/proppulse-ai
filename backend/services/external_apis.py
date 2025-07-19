@@ -56,113 +56,20 @@ class ExternalAPIService:
                 except Exception as e:
                     self.logger.warning(f"Real API fallback failed: {e}")
             
-            # Final fallback to enhanced mock data for MVP demo
-            self.logger.info(f"Using enhanced mock data for {address} (free APIs had issues)")
+            # No fallback data - return minimal structure with no defaults
+            self.logger.info(f"No property data available for {address} - returning minimal structure")
             
-            # Enhanced mock data structure for MVP demo
+            # Return minimal structure with no default values
             property_data = {
                 "address": address,
-                "property_type": "Multifamily",
-                "year_built": 1995,
-                "units": 48,
-                "square_footage": 42000,
-                "lot_size": 2.1,
-                "estimated_value": 2500000,
-                "price_per_unit": 52083,
-                "price_per_sqft": 59.52,
                 
-                # Market analysis
-                "market_data": {
-                    "avg_rent_per_unit": 875,
-                    "avg_rent_per_sqft": 0.99,
-                    "occupancy_rate": 95.8,
-                    "cap_rate_range": [5.8, 6.5],
-                    "market_rent_growth_3yr": 4.2,
-                    "comparable_sales": [
-                        {
-                            "address": "123 Comparable Dr",
-                            "sale_price": 2400000,
-                            "sale_date": "2024-03-15",
-                            "units": 44,
-                            "cap_rate": 6.1,
-                            "price_per_unit": 54545
-                        },
-                        {
-                            "address": "456 Similar St",
-                            "sale_price": 2650000,
-                            "sale_date": "2024-01-22",
-                            "units": 52,
-                            "cap_rate": 5.9,
-                            "price_per_unit": 50962
-                        },
-                        {
-                            "address": "789 Comp Avenue",
-                            "sale_price": 2350000,
-                            "sale_date": "2023-11-08",
-                            "units": 46,
-                            "cap_rate": 6.3,
-                            "price_per_unit": 51087
-                        }
-                    ]
-                },
-                
-                # Neighborhood analysis
-                "neighborhood_data": {
-                    "crime_score": 7.2,  # Out of 10, higher is safer
-                    "school_rating": 8.1,  # Out of 10
-                    "walkability_score": 6.8,  # Out of 10
-                    "median_income": 67500,
-                    "population_growth_5yr": 8.5,  # Percentage
-                    "unemployment_rate": 3.2,
-                    "median_age": 34.5,
-                    "college_educated_pct": 42.8
-                },
-                
-                # Property specifics
-                "zoning": "R-3 (Multi-Family Residential)",
-                "parking_spaces": 58,
-                "parking_ratio": 1.21,  # Spaces per unit
-                "amenities": [
-                    "Swimming Pool",
-                    "Fitness Center", 
-                    "Clubhouse",
-                    "On-site Laundry",
-                    "Playground",
-                    "Covered Parking"
-                ],
-                
-                # Financial estimates
-                "estimated_expenses": {
-                    "property_management": 8.0,  # % of gross income
-                    "property_taxes": 1.8,  # % of property value
-                    "insurance": 0.7,  # % of property value
-                    "maintenance_capex": 5.0,  # % of gross income
-                    "utilities": 6500,  # Annual amount
-                    "other_expenses": 12000  # Annual amount
-                },
-                
-                # Market trends
-                "market_trends": {
-                    "rental_market_trend": "Growing",
-                    "supply_pipeline": "Moderate",
-                    "demand_drivers": [
-                        "Job growth in tech sector",
-                        "University expansion",
-                        "Transit improvements"
-                    ],
-                    "risk_factors": [
-                        "New construction in pipeline",
-                        "Economic uncertainty"
-                    ]
-                },
-                
-                # Data sources and quality
+                # Data sources and quality - minimal metadata only
                 "data_quality": {
-                    "property_data_confidence": 85,
-                    "market_data_confidence": 78,
-                    "neighborhood_data_confidence": 82,
-                    "last_updated": "2024-07-18",
-                    "sources": ["CoStar", "Zillow", "NeighborhoodScout", "Census"]
+                    "is_free_data": False,
+                    "sources": [],
+                    "confidence": 0,
+                    "last_updated": "2025-07-20",
+                    "notes": "No property data available from any source"
                 }
             }
             
@@ -172,11 +79,6 @@ class ExternalAPIService:
                 if real_data:
                     property_data.update(real_data)
                     property_data["data_quality"]["is_real_data"] = True
-                else:
-                    property_data["data_quality"]["is_mock_data"] = True
-            else:
-                property_data["data_quality"]["is_mock_data"] = True
-                property_data["data_quality"]["note"] = "Using demo data - configure API keys for real data"
             
             return property_data
             
@@ -219,13 +121,12 @@ class ExternalAPIService:
         return {
             "address": address,
             "error": "Unable to fetch property data",
-            "property_type": "Multifamily",
-            "estimated_value": 2000000,
-            "units": 40,
-            "estimated": True,
             "data_quality": {
                 "is_fallback_data": True,
-                "confidence": 30
+                "confidence": 0,
+                "sources": [],
+                "last_updated": "2025-07-20",
+                "notes": "No data available from any source"
             }
         }
     
