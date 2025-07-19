@@ -1,0 +1,514 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Navigation } from "@/components/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  GitCompare,
+  Plus,
+  Trash2,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Building,
+  Calculator,
+  Award,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  BarChart3,
+} from "lucide-react";
+import { formatCurrency, formatPercent } from "@/lib/utils";
+
+interface ComparisonProperty {
+  id: string;
+  address: string;
+  metrics: {
+    cap_rate: number;
+    cash_on_cash: number;
+    irr: number;
+    debt_service_coverage: number;
+    market_value: number;
+  };
+  score: number;
+  pass_fail: "PASS" | "FAIL";
+}
+
+export default function ComparisonPage() {
+  const [properties, setProperties] = useState<ComparisonProperty[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch user's analyzed properties
+    const fetchProperties = async () => {
+      try {
+        const API_BASE_URL =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const response = await fetch(`${API_BASE_URL}/user/analyses`);
+
+        if (response.ok) {
+          const data = await response.json();
+          const formattedProperties = data.map((analysis: any) => ({
+            id: analysis.id,
+            address: analysis.property_address,
+            metrics: analysis.analysis_result.metrics,
+            score: analysis.analysis_result.score,
+            pass_fail: analysis.analysis_result.pass_fail,
+          }));
+          setProperties(formattedProperties);
+        }
+      } catch (error) {
+        console.error("Error fetching properties:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, []);
+
+  const handlePropertySelect = (propertyId: string) => {
+    setSelectedProperties((prev) => {
+      if (prev.includes(propertyId)) {
+        return prev.filter((id) => id !== propertyId);
+      } else if (prev.length < 4) {
+        // Limit to 4 properties for comparison
+        return [...prev, propertyId];
+      }
+      return prev;
+    });
+  };
+
+  const selectedData = properties.filter((p) =>
+    selectedProperties.includes(p.id)
+  );
+
+  const getMetricComparison = (metric: keyof ComparisonProperty["metrics"]) => {
+    if (selectedData.length < 2) return [];
+
+    const values = selectedData.map((p) => p.metrics[metric]);
+    const max = Math.max(...values);
+
+    return selectedData.map((property, index) => ({
+      property,
+      value: values[index],
+      isMax: values[index] === max,
+      percentage: (values[index] / max) * 100,
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-3">Loading properties...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <GitCompare className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Property Comparison
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Compare key metrics across your analyzed properties
+              </p>
+            </div>
+          </div>
+          
+          {selectedData.length > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                <span className="text-blue-800 font-medium">
+                  Comparing {selectedData.length} properties
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedProperties([])}
+                className="text-blue-600 border-blue-300 hover:bg-blue-100"
+              >
+                Clear All
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Property Selection */}
+          <div className="lg:col-span-1">
+            <Card className="h-fit sticky top-4">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center space-x-2">
+                  <Building className="h-5 w-5" />
+                  <span>Select Properties</span>
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Choose up to 4 properties from your analyzed deals
+                </p>
+                <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                  <span>Selected: {selectedProperties.length}/4</span>
+                  <span>Total: {properties.length}</span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {properties.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Building className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">No analyzed properties found</p>
+                      <p className="text-xs">Upload and analyze properties first</p>
+                    </div>
+                  ) : (
+                    properties.map((property) => (
+                      <div
+                        key={property.id}
+                        className={`border rounded-xl p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                          selectedProperties.includes(property.id)
+                            ? "border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        } ${
+                          selectedProperties.length >= 4 && !selectedProperties.includes(property.id)
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                        onClick={() => handlePropertySelect(property.id)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-900 truncate mb-2">
+                              {property.address}
+                            </p>
+                            <div className="flex items-center space-x-2 mb-3">
+                              <span
+                                
+                                className="text-xs"
+                              >
+                                {property.pass_fail === "PASS" ? (
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                )}
+                                {property.pass_fail}
+                              </span>
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                Score: {property.score}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                              <div>
+                                <span className="text-gray-400">Cap Rate:</span>
+                                <br />
+                                <span className="font-medium">
+                                  {formatPercent(property.metrics.cap_rate)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-400">CoC:</span>
+                                <br />
+                                <span className="font-medium">
+                                  {formatPercent(property.metrics.cash_on_cash)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="ml-3 flex-shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedProperties.includes(property.id)}
+                              onChange={() => handlePropertySelect(property.id)}
+                              disabled={selectedProperties.length >= 4 && !selectedProperties.includes(property.id)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Comparison Results */}
+          <div className="lg:col-span-2">
+            {selectedData.length < 2 ? (
+              <Card className="h-96">
+                <CardContent className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                      <GitCompare className="h-12 w-12 text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                      Ready to Compare Properties
+                    </h3>
+                    <p className="text-gray-600 mb-4 max-w-md">
+                      Select at least 2 properties from the list to see a detailed 
+                      side-by-side comparison of their key metrics and performance.
+                    </p>
+                    <div className="inline-flex items-center text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">
+                      <Calculator className="h-4 w-4 mr-2" />
+                      Analyze properties first if none are available
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {/* Winner Badge */}
+                {selectedData.length > 1 && (
+                  <Card className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Award className="h-6 w-6 text-yellow-600" />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">Top Performer</h3>
+                            <p className="text-sm text-gray-600">
+                              Based on overall score and metrics
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {(() => {
+                            const topProperty = selectedData.reduce((prev, current) => 
+                              current.score > prev.score ? current : prev
+                            );
+                            return (
+                              <div>
+                                <p className="font-bold text-yellow-800 truncate max-w-xs">
+                                  {topProperty.address}
+                                </p>
+                                <p className="text-sm text-yellow-600">
+                                  Score: {topProperty.score}
+                                </p>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Overview Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <BarChart3 className="h-5 w-5" />
+                      <span>Comparison Overview</span>
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      Key metrics for all selected properties
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50">
+                            <th className="text-left py-4 px-4 font-semibold text-gray-900">Property</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">Score</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">Result</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">Cap Rate</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">CoC Return</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">IRR</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">DSCR</th>
+                            <th className="text-center py-4 px-3 font-semibold text-gray-900">Market Value</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedData.map((property, index) => (
+                            <tr 
+                              key={property.id} 
+                              className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                                index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                              }`}
+                            >
+                              <td className="py-4 px-4">
+                                <div className="flex items-center space-x-3">
+                                  <div className={`w-3 h-3 rounded-full ${
+                                    property.pass_fail === "PASS" ? "bg-green-500" : "bg-red-500"
+                                  }`}></div>
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm max-w-xs truncate">
+                                      {property.address}
+                                    </p>
+                                    <p className="text-xs text-gray-500">Property #{index + 1}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold text-lg text-gray-900">
+                                    {property.score}
+                                  </span>
+                                  <div className="w-12 bg-gray-200 rounded-full h-1.5 mt-1">
+                                    <div 
+                                      className="bg-primary h-1.5 rounded-full transition-all" 
+                                      style={{ width: `${(property.score / 100) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <span
+                                  
+                                  className="font-medium"
+                                >
+                                  {property.pass_fail === "PASS" ? (
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  ) : (
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                  )}
+                                  {property.pass_fail}
+                                </span>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <span className="font-semibold text-gray-900">
+                                  {formatPercent(property.metrics.cap_rate)}
+                                </span>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <span className="font-semibold text-gray-900">
+                                  {formatPercent(property.metrics.cash_on_cash)}
+                                </span>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <span className="font-semibold text-gray-900">
+                                  {formatPercent(property.metrics.irr)}
+                                </span>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <span className="font-semibold text-gray-900">
+                                  {property.metrics.debt_service_coverage.toFixed(2)}x
+                                </span>
+                              </td>
+                              <td className="text-center py-4 px-3">
+                                <span className="font-semibold text-gray-900">
+                                  {formatCurrency(property.metrics.market_value || 0)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Metric Comparisons */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[
+                    { key: "cap_rate", name: "Cap Rate", icon: TrendingUp, color: "blue" },
+                    { key: "cash_on_cash", name: "Cash-on-Cash Return", icon: DollarSign, color: "green" },
+                    { key: "irr", name: "Internal Rate of Return", icon: BarChart3, color: "purple" },
+                    { key: "debt_service_coverage", name: "Debt Service Coverage", icon: Calculator, color: "orange" },
+                  ].map(({ key, name, icon: Icon, color }) => {
+                    const comparison = getMetricComparison(
+                      key as keyof ComparisonProperty["metrics"]
+                    );
+
+                    const colorClasses = {
+                      blue: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-600", bar: "bg-blue-500", max: "bg-blue-600" },
+                      green: { bg: "bg-green-50", border: "border-green-200", text: "text-green-600", bar: "bg-green-500", max: "bg-green-600" },
+                      purple: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-600", bar: "bg-purple-500", max: "bg-purple-600" },
+                      orange: { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-600", bar: "bg-orange-500", max: "bg-orange-600" },
+                    };
+
+                    const colors = colorClasses[color as keyof typeof colorClasses];
+
+                    return (
+                      <Card key={key} className={`${colors.border} ${colors.bg} border-2`}>
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center space-x-2">
+                            <Icon className={`h-5 w-5 ${colors.text}`} />
+                            <span className="text-gray-900">{name}</span>
+                          </CardTitle>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Comparison</span>
+                            {comparison.length > 0 && (
+                              <span className={`font-medium ${colors.text}`}>
+                                Best: {key === "debt_service_coverage" 
+                                  ? Math.max(...comparison.map(c => c.value)).toFixed(2) + "x"
+                                  : formatPercent(Math.max(...comparison.map(c => c.value)))
+                                }
+                              </span>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="space-y-4">
+                            {comparison.map(({ property, value, isMax, percentage }) => (
+                              <div key={property.id} className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center space-x-2">
+                                    <div className={`w-2 h-2 rounded-full ${
+                                      isMax ? colors.max : colors.bar
+                                    }`}></div>
+                                    <span className="text-sm font-medium text-gray-700 truncate max-w-40">
+                                      {property.address}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`text-sm font-bold ${
+                                      isMax ? colors.text : "text-gray-600"
+                                    }`}>
+                                      {key === "debt_service_coverage"
+                                        ? value.toFixed(2) + "x"
+                                        : formatPercent(value)}
+                                    </span>
+                                    {isMax && (
+                                      <Award className={`h-4 w-4 ${colors.text}`} />
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                  <div
+                                    className={`h-3 rounded-full transition-all duration-500 ${
+                                      isMax ? colors.max : colors.bar
+                                    } shadow-sm`}
+                                    style={{ width: `${percentage}%` }}
+                                  ></div>
+                                </div>
+                                {isMax && (
+                                  <div className="text-xs text-gray-500 italic">
+                                    ↑ Top performer for this metric
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
