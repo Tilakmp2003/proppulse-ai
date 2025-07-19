@@ -7,6 +7,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 ## 🚀 Features
 
 ### Core Functionality
+
 - **Document Upload & Processing**: Upload and analyze rent rolls, financial statements, and property documents
 - **AI-Powered Analysis**: Advanced AI analysis using Google Gemini for property insights
 - **Financial Projections**: Comprehensive financial modeling and ROI calculations
@@ -14,6 +15,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 - **Interactive Dashboard**: Real-time analytics and performance tracking
 
 ### Key Capabilities
+
 - **Multi-Format Support**: PDF, CSV, Excel file processing
 - **Real Estate APIs**: Integration with multiple property data sources
 - **Automated Reporting**: Generate detailed investment analysis reports
@@ -23,6 +25,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 ## 🛠 Technology Stack
 
 ### Backend
+
 - **FastAPI**: High-performance Python web framework
 - **SQLAlchemy**: SQL toolkit and ORM
 - **PostgreSQL**: Primary database (production)
@@ -31,6 +34,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 - **Supabase**: Authentication and database hosting
 
 ### Frontend
+
 - **Next.js 15**: React framework with App Router
 - **TypeScript**: Type-safe development
 - **Tailwind CSS**: Utility-first CSS framework
@@ -38,6 +42,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 - **Supabase Auth**: Authentication integration
 
 ### DevOps & Deployment
+
 - **Docker**: Containerization
 - **Docker Compose**: Multi-container orchestration
 - **Railway**: Backend deployment platform
@@ -55,12 +60,14 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 ### Using Docker (Recommended)
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/Tilakmp2003/proppulse-ai.git
    cd proppulse-ai
    ```
 
 2. **Set up environment variables**
+
    ```bash
    # Backend environment
    cp backend/.env.example backend/.env
@@ -72,6 +79,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
    ```
 
 3. **Start the application**
+
    ```bash
    docker-compose up --build
    ```
@@ -86,22 +94,26 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 #### Backend Setup
 
 1. **Navigate to backend directory**
+
    ```bash
    cd backend
    ```
 
 2. **Create virtual environment**
+
    ```bash
    python -m venv backend_env
    source backend_env/bin/activate  # On Windows: backend_env\Scripts\activate
    ```
 
 3. **Install dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Set up environment variables**
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
@@ -115,16 +127,19 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 #### Frontend Setup
 
 1. **Navigate to frontend directory**
+
    ```bash
    cd frontend
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    # Edit .env.local with your configuration
@@ -140,6 +155,7 @@ PropPulse AI is a comprehensive real estate investment analysis platform that le
 ### Required Environment Variables
 
 #### Backend (.env)
+
 ```env
 # Database
 DATABASE_URL=sqlite:///./proppulse_ai.db
@@ -169,6 +185,7 @@ MAX_FILE_SIZE=50000000
 ```
 
 #### Frontend (.env.local)
+
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -203,16 +220,19 @@ proppulse-ai/
 ## 🔌 API Endpoints
 
 ### Authentication
+
 - `POST /auth/register` - User registration
 - `POST /auth/login` - User login
 - `POST /auth/logout` - User logout
 
 ### File Upload & Analysis
+
 - `POST /upload/documents` - Upload property documents
 - `GET /analysis/results` - Get analysis results
 - `GET /analysis/results/{id}` - Get specific analysis
 
 ### Property Data
+
 - `POST /property/analyze` - Analyze property data
 - `POST /property/compare` - Compare multiple properties
 - `GET /property/market-data` - Get market data
@@ -220,12 +240,14 @@ proppulse-ai/
 ## 🧪 Testing
 
 ### Backend Tests
+
 ```bash
 cd backend
 python -m pytest tests/
 ```
 
 ### Frontend Tests
+
 ```bash
 cd frontend
 npm test
@@ -234,17 +256,20 @@ npm test
 ## 📊 Key Features Explained
 
 ### Document Processing
+
 - **Multi-format Support**: PDF, CSV, Excel files
 - **OCR Capabilities**: Extract text from scanned documents
 - **Data Validation**: Ensure data integrity and accuracy
 
 ### AI Analysis
+
 - **Market Analysis**: Property market trends and insights
 - **Financial Projections**: ROI, cash flow, and profitability analysis
 - **Risk Assessment**: Investment risk evaluation
 - **Comparable Analysis**: Similar property comparison
 
 ### Real Estate APIs
+
 - **Property Data**: Access to comprehensive property databases
 - **Market Trends**: Real-time market information
 - **Neighborhood Analytics**: Area demographics and statistics
@@ -254,16 +279,19 @@ npm test
 ### Production Deployment
 
 #### Backend (Railway)
+
 1. Connect your GitHub repository to Railway
 2. Set environment variables in Railway dashboard
 3. Deploy automatically on push to main branch
 
 #### Frontend (Vercel)
+
 1. Connect your GitHub repository to Vercel
 2. Set environment variables in Vercel dashboard
 3. Deploy automatically on push to main branch
 
 ### Environment-Specific Configurations
+
 - **Development**: SQLite database, local file storage
 - **Production**: PostgreSQL database, cloud storage
 
@@ -276,6 +304,7 @@ npm test
 5. Open a Pull Request
 
 ### Development Guidelines
+
 - Follow PEP 8 for Python code
 - Use TypeScript for all frontend code
 - Write comprehensive tests
@@ -298,6 +327,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 For support and questions:
+
 - Email: rxtilak3@gmail.com
 - GitHub Issues: [Create an issue](https://github.com/Tilakmp2003/proppulse-ai/issues)
 
