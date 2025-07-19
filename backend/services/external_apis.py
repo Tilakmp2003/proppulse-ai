@@ -56,6 +56,12 @@ class ExternalAPIService:
                 except Exception as e:
                     self.logger.warning(f"Real API fallback failed: {e}")
             
+            # Try basic address analysis when APIs are unavailable
+            basic_estimates = self._get_basic_property_estimates(address)
+            if basic_estimates:
+                self.logger.info(f"Using basic property estimates for {address}")
+                return basic_estimates
+            
             # No fallback data - return minimal structure with no defaults
             self.logger.info(f"No property data available for {address} - returning minimal structure")
             
@@ -340,3 +346,68 @@ class ExternalAPIService:
                         del formatted[section][key]
         
         return formatted
+    
+    def _get_basic_property_estimates(self, address: str) -> Optional[Dict[str, Any]]:
+        """
+        Provide basic property estimates based on address analysis when APIs are unavailable
+        This is transparent about being estimates, not real data
+        """
+        try:
+            import re
+            
+            # Parse address for clues
+            address_lower = address.lower()
+            
+            # Detect if it's likely multifamily
+            multifamily_indicators = ['apt', 'apartment', 'unit', 'suite', '#', 'complex', 'towers', 'plaza', 'manor', 'court', 'place']
+            is_likely_multifamily = any(indicator in address_lower for indicator in multifamily_indicators)
+            
+            # Extract unit numbers or building size clues
+            unit_match = re.search(r'unit\s*(\d+)|apt\s*(\d+)|#\s*(\d+)', address_lower)
+            has_unit_number = bool(unit_match)
+            
+            # Basic estimates based on address patterns
+            if is_likely_multifamily or has_unit_number:
+                property_type = "Multifamily"
+                
+                # Estimate units based on address clues
+                if unit_match:
+                    unit_num = max([int(g) for g in unit_match.groups() if g])
+                    estimated_units = min(max(unit_num + 10, 20), 100)  # Reasonable range
+                else:
+                    estimated_units = 48  # Conservative multifamily estimate
+                
+                # Basic square footage estimate
+                estimated_sqft = estimated_units * 850  # Average unit size
+                
+                # Basic value estimate (conservative)
+                estimated_value = estimated_units * 55000  # Conservative per-unit value
+                
+                return {
+                    "address": address,
+                    "property_type": property_type,
+                    "units": estimated_units,
+                    "square_footage": estimated_sqft,
+                    "estimated_value": estimated_value,
+                    "price_per_unit": int(estimated_value / estimated_units),
+                    "price_per_sqft": round(estimated_value / estimated_sqft, 2),
+                    
+                    "market_data": {
+                        "avg_rent_per_unit": estimated_units * 18,  # Conservative rent estimate
+                        "estimated_cap_rate": 6.5,
+                    },
+                    
+                    "data_quality": {
+                        "is_estimated_data": True,
+                        "confidence": 25,  # Low confidence
+                        "sources": ["Address Analysis"],
+                        "last_updated": "2025-07-20",
+                        "notes": "⚠️ ESTIMATES ONLY - Based on address analysis when real data APIs unavailable. Use for initial screening only."
+                    }
+                }
+            
+            return None  # Don't estimate for non-multifamily
+            
+        except Exception as e:
+            self.logger.error(f"Error in basic estimates: {e}")
+            return None
