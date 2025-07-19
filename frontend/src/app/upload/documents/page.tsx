@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Navigation } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +45,7 @@ const mockPropertyData = {
   },
 };
 
-export default function DocumentsUploadPage() {
+function DocumentsUploadContent() {
   const [t12File, setT12File] = useState<File | null>(null);
   const [rentRollFile, setRentRollFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,8 +54,16 @@ export default function DocumentsUploadPage() {
   const [realPropertyData, setRealPropertyData] = useState<any>(null);
   const [fetchingPropertyData, setFetchingPropertyData] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [address, setAddress] = useState<string>("");
+
+  useEffect(() => {
+    const addressFromUrl = searchParams.get("address");
+    if (addressFromUrl) {
+      setAddress(addressFromUrl);
+    }
+  }, [searchParams]);
 
   // Fetch real property data when address is available
   useEffect(() => {
@@ -222,206 +230,220 @@ export default function DocumentsUploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-green-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">1</span>
-              </div>
-              <span className="ml-2 text-sm font-medium text-green-600">
-                Address
-              </span>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Progress Indicator */}
+      <div className="flex items-center justify-center mb-8">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-green-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-medium">1</span>
             </div>
-            <div className="h-0.5 w-16 bg-green-500"></div>
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">2</span>
-              </div>
-              <span className="ml-2 text-sm font-medium text-primary">
-                Documents
-              </span>
+            <span className="ml-2 text-sm font-medium text-green-600">
+              Address
+            </span>
+          </div>
+          <div className="h-0.5 w-16 bg-green-500"></div>
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-medium">2</span>
             </div>
-            <div className="h-0.5 w-16 bg-gray-300"></div>
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-gray-300 rounded-full flex items-center justify-center">
-                <span className="text-gray-600 text-sm font-medium">3</span>
-              </div>
-              <span className="ml-2 text-sm font-medium text-gray-600">
-                Analysis
-              </span>
+            <span className="ml-2 text-sm font-medium text-primary">
+              Documents
+            </span>
+          </div>
+          <div className="h-0.5 w-16 bg-gray-300"></div>
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-gray-300 rounded-full flex items-center justify-center">
+              <span className="text-gray-600 text-sm font-medium">3</span>
             </div>
+            <span className="ml-2 text-sm font-medium text-gray-600">
+              Analysis
+            </span>
           </div>
         </div>
+      </div>
 
-        {/* Property Overview */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Building className="h-5 w-5" />
-              <span>Property Overview</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Address</span>
-                </div>
-                <p className="font-semibold">{propertyData.address}</p>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <Building className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Type</span>
-                </div>
-                <p className="font-semibold">{propertyData.propertyType}</p>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Units</span>
-                </div>
-                <p className="font-semibold">{propertyData.units}</p>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Asking Price</span>
-                </div>
-                <p className="font-semibold">
-                  $
-                  {propertyData.askingPrice
-                    ? propertyData.askingPrice.toLocaleString()
-                    : "0"}
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Year Built</span>
-                </div>
-                <p className="font-semibold">
-                  {propertyData.yearBuilt || "Unknown"}
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-sm text-gray-600">Square Footage</span>
-                <p className="font-semibold">
-                  {propertyData.squareFootage
-                    ? propertyData.squareFootage.toLocaleString()
-                    : "0"}{" "}
-                  sq ft
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-sm text-gray-600">Neighborhood</span>
-                <p className="font-semibold">
-                  {propertyData.neighborhood || "Unknown"}
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-sm text-gray-600">Walk Score</span>
-                <p className="font-semibold">
-                  {propertyData.walkScore || 0}/100
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Document Upload Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Upload Financial Documents
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <UploadBox
-              title="T12 (Trailing 12 Months)"
-              description="Upload your T12 operating statement in PDF or Excel format"
-              acceptedTypes={[".pdf", ".xlsx", ".xls"]}
-              onFileSelect={setT12File}
-              selectedFile={t12File}
-              disabled={loading}
-            />
-
-            <UploadBox
-              title="Rent Roll"
-              description="Upload your current rent roll in Excel or CSV format"
-              acceptedTypes={[".xlsx", ".xls", ".csv"]}
-              onFileSelect={setRentRollFile}
-              selectedFile={rentRollFile}
-              disabled={loading}
-            />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/upload")}
-            disabled={loading}
-          >
-            Back to Address
-          </Button>
-
-          <Button
-            onClick={handleContinueToAnalysis}
-            disabled={!t12File || !rentRollFile || loading}
-            size="lg"
-            className="px-8"
-          >
-            {loading ? (
+      {/* Property Overview */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Building className="h-5 w-5" />
+            <span>Property Overview</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-1">
               <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Processing Documents...</span>
+                <MapPin className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600">Address</span>
               </div>
-            ) : (
-              "Continue to Analysis"
-            )}
-          </Button>
-        </div>
-
-        {loading && (
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center space-x-3">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-              <div>
-                <p className="text-sm font-medium text-blue-900">
-                  {currentStep || "Processing Financial Documents..."}
-                </p>
-                <p className="text-xs text-blue-700">
-                  Our AI is extracting and analyzing your financial data
-                </p>
-              </div>
+              <p className="font-semibold">{propertyData.address}</p>
             </div>
-            <div className="mt-3">
-              <div className="bg-blue-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
+
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <Building className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600">Type</span>
               </div>
-              <p className="text-xs text-blue-700 mt-1">
-                {uploadProgress}% complete
+              <p className="font-semibold">{propertyData.propertyType}</p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600">Units</span>
+              </div>
+              <p className="font-semibold">{propertyData.units}</p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600">Asking Price</span>
+              </div>
+              <p className="font-semibold">
+                $
+                {propertyData.askingPrice
+                  ? propertyData.askingPrice.toLocaleString()
+                  : "0"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-600">Year Built</span>
+              </div>
+              <p className="font-semibold">
+                {propertyData.yearBuilt || "Unknown"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-sm text-gray-600">Square Footage</span>
+              <p className="font-semibold">
+                {propertyData.squareFootage
+                  ? propertyData.squareFootage.toLocaleString()
+                  : "0"}{" "}
+                sq ft
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-sm text-gray-600">Neighborhood</span>
+              <p className="font-semibold">
+                {propertyData.neighborhood || "Unknown"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-sm text-gray-600">Walk Score</span>
+              <p className="font-semibold">{propertyData.walkScore || 0}/100</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Document Upload Section */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Upload Financial Documents
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <UploadBox
+            title="T12 (Trailing 12 Months)"
+            description="Upload your T12 operating statement in PDF or Excel format"
+            acceptedTypes={[".pdf", ".xlsx", ".xls"]}
+            onFileSelect={setT12File}
+            selectedFile={t12File}
+            disabled={loading}
+          />
+
+          <UploadBox
+            title="Rent Roll"
+            description="Upload your current rent roll in Excel or CSV format"
+            acceptedTypes={[".xlsx", ".xls", ".csv"]}
+            onFileSelect={setRentRollFile}
+            selectedFile={rentRollFile}
+            disabled={loading}
+          />
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={() => router.push("/upload")}
+          disabled={loading}
+        >
+          Back to Address
+        </Button>
+
+        <Button
+          onClick={handleContinueToAnalysis}
+          disabled={!t12File || !rentRollFile || loading}
+          size="lg"
+          className="px-8"
+        >
+          {loading ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Processing Documents...</span>
+            </div>
+          ) : (
+            "Continue to Analysis"
+          )}
+        </Button>
+      </div>
+
+      {loading && (
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <div>
+              <p className="text-sm font-medium text-blue-900">
+                {currentStep || "Processing Financial Documents..."}
+              </p>
+              <p className="text-xs text-blue-700">
+                Our AI is extracting and analyzing your financial data
               </p>
             </div>
           </div>
-        )}
-      </div>
+          <div className="mt-3">
+            <div className="bg-blue-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              {uploadProgress}% complete
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function DocumentsUploadPage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <Suspense fallback={<Loading />}>
+        <DocumentsUploadContent />
+      </Suspense>
+    </div>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+      <p className="text-gray-600">Loading property data...</p>
     </div>
   );
 }
