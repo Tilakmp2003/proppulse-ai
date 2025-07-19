@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,9 +54,8 @@ export default function DocumentsUploadPage() {
   const [realPropertyData, setRealPropertyData] = useState<any>(null);
   const [fetchingPropertyData, setFetchingPropertyData] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const address = searchParams.get("address") || "";
+  const [address, setAddress] = useState<string>("");
 
   // Fetch real property data when address is available
   useEffect(() => {

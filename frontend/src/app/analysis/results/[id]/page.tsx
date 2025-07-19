@@ -295,30 +295,24 @@ export default function AnalysisResultsPage() {
               value={formatPercent(metrics.cap_rate)}
               change={undefined}
               icon={<TrendingUp className="h-5 w-5" />}
-              trend={metrics.cap_rate >= 6 ? "positive" : "negative"}
             />
             <MetricCard
               title="Cash-on-Cash Return"
               value={formatPercent(metrics.cash_on_cash)}
               change={undefined}
               icon={<DollarSign className="h-5 w-5" />}
-              trend={metrics.cash_on_cash >= 8 ? "positive" : "negative"}
             />
             <MetricCard
               title="IRR"
               value={formatPercent(metrics.irr)}
               change={undefined}
               icon={<TrendingUp className="h-5 w-5" />}
-              trend={metrics.irr >= 12 ? "positive" : "negative"}
             />
             <MetricCard
               title="DSCR"
               value={metrics.debt_service_coverage.toFixed(2)}
               change={undefined}
               icon={<Calculator className="h-5 w-5" />}
-              trend={
-                metrics.debt_service_coverage >= 1.2 ? "positive" : "negative"
-              }
             />
           </div>
         </div>
