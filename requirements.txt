@@ -12,13 +12,12 @@ numpy==1.26.0
 openpyxl==3.1.2
 pdfplumber==0.10.3
 requests==2.31.0
-httpx==0.25.2
+httpx==0.24.1
 google-generativeai==0.3.2
 reportlab==4.4.2
 supabase==2.0.2
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
 Pillow==10.1.0
 jinja2==3.1.2
 aiofiles==23.2.1
