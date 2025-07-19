@@ -68,15 +68,52 @@ function DocumentsUploadContent() {
   // Fetch real property data when address is available
   useEffect(() => {
     if (address && address.trim()) {
+      console.log("Fetching data for address:", address);
       fetchRealPropertyData(address);
     }
   }, [address]);
 
+  // Debug property data whenever it changes
+  useEffect(() => {
+    if (realPropertyData) {
+      console.log("Real property data loaded:", realPropertyData);
+      console.log("Processed property data:", {
+        address: realPropertyData.property_address,
+        propertyType:
+          realPropertyData.analysis_result?.property_details?.property_type,
+        units: realPropertyData.analysis_result?.property_details?.units,
+        yearBuilt:
+          realPropertyData.analysis_result?.property_details?.year_built,
+        squareFootage:
+          realPropertyData.analysis_result?.property_details?.square_footage,
+        neighborhood_info: realPropertyData.analysis_result?.neighborhood_info,
+        neighborhood_data: realPropertyData.analysis_result?.neighborhood_data,
+        market_data: realPropertyData.analysis_result?.market_data,
+      });
+    }
+  }, [realPropertyData]);
+
   const fetchRealPropertyData = async (propertyAddress: string) => {
     setFetchingPropertyData(true);
+
+    // Check if we have mock data for this address
+    const mockDataExists =
+      Object.keys(mockPropertyData).includes(propertyAddress);
+    console.log("Mock data exists for this address?", mockDataExists);
+
+    // If we have mock data and it's a development environment, use the mock data
+    if (mockDataExists && process.env.NODE_ENV === "development") {
+      console.log("Using mock data for:", propertyAddress);
+      // We don't set realPropertyData, so it will fall back to mock data
+      setFetchingPropertyData(false);
+      return;
+    }
+
     try {
       const API_BASE_URL =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+      console.log("Fetching from API:", `${API_BASE_URL}/quick-analysis`);
 
       const response = await fetch(`${API_BASE_URL}/quick-analysis`, {
         method: "POST",
@@ -88,9 +125,14 @@ function DocumentsUploadContent() {
 
       if (response.ok) {
         const result = await response.json();
+        console.log("Property data received:", result);
         setRealPropertyData(result);
       } else {
-        console.error("Failed to fetch property data");
+        console.error(
+          "Failed to fetch property data:",
+          response.status,
+          await response.text()
+        );
       }
     } catch (error) {
       console.error("Error fetching property data:", error);
@@ -104,41 +146,37 @@ function DocumentsUploadContent() {
     ? {
         address: realPropertyData.property_address,
         propertyType:
-          realPropertyData.analysis_result?.property_details?.property_type ||
-          "Multifamily",
-        units: realPropertyData.analysis_result?.property_details?.units || 0,
+          realPropertyData.analysis_result?.property_details?.property_type,
+        units: realPropertyData.analysis_result?.property_details?.units,
         yearBuilt:
-          realPropertyData.analysis_result?.property_details?.year_built || 0,
+          realPropertyData.analysis_result?.property_details?.year_built,
         squareFootage:
-          realPropertyData.analysis_result?.property_details?.square_footage ||
-          0,
+          realPropertyData.analysis_result?.property_details?.square_footage,
         askingPrice:
-          realPropertyData.analysis_result?.property_details?.market_value || 0,
+          realPropertyData.analysis_result?.property_details?.market_value,
         marketValue:
-          realPropertyData.analysis_result?.property_details?.market_value || 0,
+          realPropertyData.analysis_result?.property_details?.market_value,
+        // Check both neighborhood_info and neighborhood_data
         neighborhood:
-          realPropertyData.analysis_result?.neighborhood_data
-            ?.location_quality ||
           realPropertyData.analysis_result?.neighborhood_info
             ?.location_quality ||
-          "Unknown",
+          realPropertyData.analysis_result?.neighborhood_data?.location_quality,
         walkScore:
-          realPropertyData.analysis_result?.neighborhood_data
-            ?.walkability_score ||
           realPropertyData.analysis_result?.neighborhood_info
             ?.walkability_score ||
-          0,
+          realPropertyData.analysis_result?.neighborhood_data
+            ?.walkability_score,
       }
     : mockPropertyData[address as keyof typeof mockPropertyData] || {
         address,
-        propertyType: "Multifamily",
-        units: 0,
-        yearBuilt: 0,
-        squareFootage: 0,
-        askingPrice: 0,
-        marketValue: 0,
-        neighborhood: "Unknown",
-        walkScore: 0,
+        propertyType: null,
+        units: null,
+        yearBuilt: null,
+        squareFootage: null,
+        askingPrice: null,
+        marketValue: null,
+        neighborhood: null,
+        walkScore: null,
       };
 
   const handleContinueToAnalysis = async () => {
@@ -286,7 +324,9 @@ function DocumentsUploadContent() {
                 <Building className="h-4 w-4 text-gray-400" />
                 <span className="text-sm text-gray-600">Type</span>
               </div>
-              <p className="font-semibold">{propertyData.propertyType}</p>
+              <p className="font-semibold">
+                {propertyData.propertyType || "Not available"}
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -294,7 +334,9 @@ function DocumentsUploadContent() {
                 <Users className="h-4 w-4 text-gray-400" />
                 <span className="text-sm text-gray-600">Units</span>
               </div>
-              <p className="font-semibold">{propertyData.units}</p>
+              <p className="font-semibold">
+                {propertyData.units ? propertyData.units : "Not available"}
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -303,10 +345,9 @@ function DocumentsUploadContent() {
                 <span className="text-sm text-gray-600">Asking Price</span>
               </div>
               <p className="font-semibold">
-                $
                 {propertyData.askingPrice
-                  ? propertyData.askingPrice.toLocaleString()
-                  : "0"}
+                  ? `$${propertyData.askingPrice.toLocaleString()}`
+                  : "Not available"}
               </p>
             </div>
 
@@ -316,7 +357,9 @@ function DocumentsUploadContent() {
                 <span className="text-sm text-gray-600">Year Built</span>
               </div>
               <p className="font-semibold">
-                {propertyData.yearBuilt || "Unknown"}
+                {propertyData.yearBuilt
+                  ? propertyData.yearBuilt
+                  : "Not available"}
               </p>
             </div>
 
@@ -324,22 +367,27 @@ function DocumentsUploadContent() {
               <span className="text-sm text-gray-600">Square Footage</span>
               <p className="font-semibold">
                 {propertyData.squareFootage
-                  ? propertyData.squareFootage.toLocaleString()
-                  : "0"}{" "}
-                sq ft
+                  ? `${propertyData.squareFootage.toLocaleString()} sq ft`
+                  : "Not available"}
               </p>
             </div>
 
             <div className="space-y-1">
               <span className="text-sm text-gray-600">Neighborhood</span>
               <p className="font-semibold">
-                {propertyData.neighborhood || "Unknown"}
+                {propertyData.neighborhood
+                  ? propertyData.neighborhood
+                  : "Not available"}
               </p>
             </div>
 
             <div className="space-y-1">
               <span className="text-sm text-gray-600">Walk Score</span>
-              <p className="font-semibold">{propertyData.walkScore || 0}/100</p>
+              <p className="font-semibold">
+                {propertyData.walkScore
+                  ? `${propertyData.walkScore}/100`
+                  : "Not available"}
+              </p>
             </div>
           </div>
         </CardContent>
