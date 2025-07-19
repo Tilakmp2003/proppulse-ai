@@ -166,6 +166,8 @@ function DocumentsUploadContent() {
             ?.walkability_score ||
           realPropertyData.analysis_result?.neighborhood_data
             ?.walkability_score,
+        // Add data quality information from market data
+        dataQuality: realPropertyData.analysis_result?.market_data?.data_quality,
       }
     : mockPropertyData[address as keyof typeof mockPropertyData] || {
         address,
@@ -177,6 +179,7 @@ function DocumentsUploadContent() {
         marketValue: null,
         neighborhood: null,
         walkScore: null,
+        dataQuality: null,
       };
 
   const handleContinueToAnalysis = async () => {
