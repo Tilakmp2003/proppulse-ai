@@ -647,8 +647,22 @@ async def quick_property_analysis(request: dict):
         if not address:
             raise HTTPException(status_code=400, detail="Address is required")
         
-        # Get real property data from free APIs
-        property_data = await external_api_service.get_property_data(address)
+        # DIRECT SMART ESTIMATION CHECK: Check if address is likely multifamily first
+        is_multifamily = any(indicator in address.lower() for indicator in ['apt', 'apartment', 'unit', 'suite', '#', 'complex', 'towers', 'plaza'])
+        
+        # If it looks like multifamily, try to use the smart estimation directly
+        if is_multifamily:
+            print(f"Detected multifamily address: {address} - using smart estimation")
+            estimated_data = external_api_service._get_basic_property_estimates(address)
+            if estimated_data:
+                # We have estimation data - use it directly
+                property_data = estimated_data
+            else:
+                # Fall back to regular process if estimation failed
+                property_data = await external_api_service.get_property_data(address)
+        else:
+            # Regular flow for non-multifamily addresses
+            property_data = await external_api_service.get_property_data(address)
         
         # Create a simplified analysis result for quick display
         quick_result = {
@@ -670,8 +684,13 @@ async def quick_property_analysis(request: dict):
                 "market_data": {
                     # Include market data from property data
                     **(property_data.get("market_data", {})),
-                    # Make sure data_quality is included at the correct level
-                    "data_quality": property_data.get("data_quality", {})
+                    # Ensure data quality is included properly - check both top level and nested structures
+                    "data_quality": property_data.get("data_quality", {}) or {
+                        "is_estimated_data": is_multifamily,
+                        "confidence": 25 if is_multifamily else None,
+                        "sources": ["Address Analysis"] if is_multifamily else None,
+                        "notes": "⚠️ ESTIMATES ONLY - Based on address analysis" if is_multifamily else None
+                    }
                 },
                 "neighborhood_info": property_data.get("neighborhood_data", {}),
                 "neighborhood_data": property_data.get("neighborhood_data", {}),
