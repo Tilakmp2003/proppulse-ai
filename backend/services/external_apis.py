@@ -372,8 +372,13 @@ class ExternalAPIService:
                 
                 # Estimate units based on address clues
                 if unit_match:
-                    unit_num = max([int(g) for g in unit_match.groups() if g])
-                    estimated_units = min(max(unit_num + 10, 20), 100)  # Reasonable range
+                    # Get all valid unit numbers from the regex groups
+                    unit_numbers = [int(g) for g in unit_match.groups() if g and g.isdigit()]
+                    if unit_numbers:
+                        unit_num = max(unit_numbers)
+                        estimated_units = min(max(unit_num + 10, 20), 100)  # Reasonable range
+                    else:
+                        estimated_units = 48  # Default if no valid numbers found
                 else:
                     estimated_units = 48  # Conservative multifamily estimate
                 
