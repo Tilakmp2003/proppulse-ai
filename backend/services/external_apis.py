@@ -370,8 +370,8 @@ class ExternalAPIService:
             unit_match = re.search(r'unit\s*(\d+)|apt\s*(\d+)|#\s*(\d+)', address_lower)
             has_unit_number = bool(unit_match)
             
-            # Basic estimates based on address patterns - either multifamily or forced estimation
-            if is_likely_multifamily or has_unit_number or force_estimation:
+            # First check for multifamily properties
+            if is_likely_multifamily or has_unit_number:
                 property_type = "Multifamily"
                 
                 # Estimate units based on address clues
@@ -388,17 +388,20 @@ class ExternalAPIService:
                 
                 # Basic square footage estimate
                 estimated_sqft = estimated_units * 850  # Average unit size
-                property_type = "Multifamily"
                 
                 # Basic value estimate (conservative)
                 estimated_value = estimated_units * 55000  # Conservative per-unit value
-            elif force_estimation:
-                # For non-multifamily addresses with force_estimation
-                if 'commercial' in address_lower or 'business' in address_lower or 'office' in address_lower or 'plaza' in address_lower:
+            # Then check for commercial properties or if force_estimation is on
+            elif ('commercial' in address_lower or 'business' in address_lower or 
+                  'office' in address_lower or 'plaza' in address_lower) or force_estimation:
+                # Check if it's likely commercial
+                if ('commercial' in address_lower or 'business' in address_lower or 
+                    'office' in address_lower or 'plaza' in address_lower):
                     property_type = "Commercial"
                     estimated_units = 1
                     estimated_sqft = 5000  # Conservative commercial estimate
                     estimated_value = estimated_sqft * 250  # $250 per sqft
+                # Otherwise assume single family when force_estimation is true
                 else:
                     property_type = "Single Family"
                     estimated_units = 1
