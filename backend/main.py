@@ -667,7 +667,12 @@ async def quick_property_analysis(request: dict):
                     "price_per_unit": property_data.get("price_per_unit", 0),
                     "price_per_sqft": property_data.get("price_per_sqft", 0),
                 },
-                "market_data": property_data.get("market_data", {}),
+                "market_data": {
+                    # Include market data from property data
+                    **(property_data.get("market_data", {})),
+                    # Make sure data_quality is included at the correct level
+                    "data_quality": property_data.get("data_quality", {})
+                },
                 "neighborhood_info": property_data.get("neighborhood_data", {}),
                 "neighborhood_data": property_data.get("neighborhood_data", {}),
                 "demographics": property_data.get("demographics", {}),
