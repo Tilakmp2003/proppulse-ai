@@ -35,11 +35,10 @@ class ExternalAPIService:
         
     async def get_property_data(self, address: str) -> Dict[str, Any]:
         """
-        Get property data from free APIs
-        Returns real property data where available, minimal structure where not
-        Never returns mock data
+        Get property data prioritizing ATTOM API for real data
+        Returns only verified property data, not estimates
         """
-        self.logger.info(f"Fetching property data for: {address}")
+        self.logger.info(f"Fetching REAL property data for: {address}")
         
         try:
             # Use the enhanced free property data service with ATTOM integration
@@ -47,42 +46,55 @@ class ExternalAPIService:
             service = FreePropertyDataService()
             property_data = await service.get_comprehensive_free_data(address)
             
-            # If we get useful data from free APIs, return it
-            if property_data and property_data.get("property_type") != "Unknown":
-                self.logger.info(f"Got real property data from free APIs for: {address}")
-                # Add data quality information
+            # Check if we have REAL ATTOM data (not just estimates)
+            attom_data = property_data.get("data_sources", {}).get("attom", {})
+            has_real_attom_data = attom_data and attom_data.get("attom_id")
+            
+            if has_real_attom_data:
+                self.logger.info(f"Got REAL ATTOM property data for: {address}")
+                # Return real ATTOM data with high confidence
                 property_data["data_quality"] = {
-                    "is_estimated_data": property_data.get("is_free_data", True),
-                    "is_free_data": property_data.get("is_free_data", True),
-                    "confidence": 85 if property_data.get("data_sources", {}).get("attom") else 75,
-                    "sources": list(property_data.get("data_sources", {}).keys()),
+                    "is_estimated_data": False,
+                    "is_free_data": False,
+                    "confidence": 95,
+                    "sources": ["ATTOM Data API"],
                     "last_updated": "2025-07-20",
-                    "notes": property_data.get("data_quality", "Enhanced estimates based on free public data")
+                    "notes": "Verified property records from ATTOM Data"
                 }
                 return property_data
             
-            # If free APIs didn't return useful data, try basic estimates
-            self.logger.info(f"No real property data from free APIs for: {address}, using basic estimates")
-            basic_estimates = self._get_basic_property_estimates(address)
-            if basic_estimates:
-                self.logger.info(f"Using basic property estimates for: {address}")
-                return basic_estimates
+            # Check if we have useful data from free public APIs (not estimates)
+            elif (property_data and 
+                  property_data.get("property_type") != "Unknown" and
+                  property_data.get("location", {}).get("latitude")):
+                
+                self.logger.info(f"Got real public data (no ATTOM) for: {address}")
+                property_data["data_quality"] = {
+                    "is_estimated_data": True,
+                    "is_free_data": True,
+                    "confidence": 60,
+                    "sources": [name for name, data in property_data.get("data_sources", {}).items() if data and name != "attom"],
+                    "last_updated": "2025-07-20",
+                    "notes": "Based on public records and location data - no verified property details"
+                }
+                return property_data
             
-            # If all else fails, return a minimal structure with Unknown values
-            # This is NOT mock data - it's an honest representation of unknown values
-            self.logger.warning(f"No property data available for: {address}")
+            # If no real data available, return minimal structure with "Not available"
+            # NO ESTIMATES OR MOCK DATA - just honest "not available"
+            self.logger.warning(f"No real property data available for: {address}")
             return {
                 "address": address,
-                "property_type": "Unknown",
-                "units": 0,
+                "property_type": "Not available",
+                "units": None,
                 "square_footage": None,
-                "estimated_value": 0,
+                "year_built": None,
+                "estimated_value": None,
                 "data_quality": {
                     "is_estimated_data": False,
-                    "is_free_data": False, 
+                    "is_free_data": False,
                     "confidence": 0,
                     "sources": [],
-                    "notes": "No property data available from any source"
+                    "notes": "No verified property data available. ATTOM API key required for real property records."
                 }
             }
             
@@ -93,10 +105,11 @@ class ExternalAPIService:
             # Return minimal structure on error - not mock data
             return {
                 "address": address,
-                "property_type": "Unknown",
-                "units": 0,
+                "property_type": "Not available",
+                "units": None,
                 "square_footage": None,
-                "estimated_value": 0,
+                "year_built": None,
+                "estimated_value": None,
                 "data_quality": {
                     "is_estimated_data": False,
                     "is_free_data": False,
