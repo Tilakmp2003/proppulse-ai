@@ -11,6 +11,7 @@ def test_estimation_api():
     print("=" * 60)
     
     try:
+        print(f"🌐 Making API request to: {backend_url}/quick-analysis")
         response = requests.post(
             f"{backend_url}/quick-analysis",
             headers={"Content-Type": "application/json"},
@@ -52,7 +53,14 @@ def test_estimation_api():
                         print(f"  - Is Estimated: {quality.get('is_estimated_data')}")
                         print(f"  - Confidence: {quality.get('confidence')}")
                         print(f"  - Notes: {quality.get('notes')}")
-                        
+                    else:
+                        print("\n⚠️ WARNING: data_quality field missing from market_data!")
+                        print(f"Market data content: {json.dumps(market, indent=2)}")
+                else:
+                    print("\n⚠️ WARNING: market_data field missing from analysis_result!")
+            else:
+                print("\n⚠️ WARNING: analysis_result field missing from response!")
+                
         else:
             print(f"\n❌ ERROR - Status: {response.status_code}")
             print(f"Response: {response.text}")

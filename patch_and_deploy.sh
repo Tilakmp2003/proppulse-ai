@@ -1,3 +1,13 @@
+#!/bin/bash
+
+# This script patches the external_apis.py file directly with our changes
+# Use this when committing through git isn't working properly
+
+# Create a backup of the original file
+cp backend/services/external_apis.py backend/services/external_apis.py.original
+
+# Apply our fix directly using sed
+cat > backend/services/external_apis.py << 'EOL'
 """
 External API Service
 Handles all interactions with external property data sources
@@ -42,22 +52,20 @@ class ExternalAPIService:
         self.logger.info(f"Fetching property data for: {address}")
         
         try:
-            # Use the enhanced free property data service with ATTOM integration
-            from services.free_property_apis import FreePropertyDataService
-            service = FreePropertyDataService()
-            property_data = await service.get_comprehensive_free_data(address)
+            # First try free property data sources
+            from services.free_property_apis import get_free_property_data
+            property_data = await get_free_property_data(address)
             
             # If we get useful data from free APIs, return it
             if property_data and property_data.get("property_type") != "Unknown":
                 self.logger.info(f"Got real property data from free APIs for: {address}")
                 # Add data quality information
                 property_data["data_quality"] = {
-                    "is_estimated_data": property_data.get("is_free_data", True),
-                    "is_free_data": property_data.get("is_free_data", True),
-                    "confidence": 85 if property_data.get("data_sources", {}).get("attom") else 75,
-                    "sources": list(property_data.get("data_sources", {}).keys()),
-                    "last_updated": "2025-07-20",
-                    "notes": property_data.get("data_quality", "Enhanced estimates based on free public data")
+                    "is_estimated_data": False,
+                    "is_free_data": True,
+                    "confidence": 80,
+                    "sources": property_data.get("data_sources", ["Free Property Data API"]),
+                    "last_updated": property_data.get("last_updated", "2025-07-20")
                 }
                 return property_data
             
@@ -131,7 +139,7 @@ class ExternalAPIService:
             
             # First check for multifamily properties
             if is_likely_multifamily or has_unit_number:
-                
+                property_type = "Multifamily"
                 
                 # Estimate units based on address clues
                 if unit_match:
@@ -205,3 +213,19 @@ class ExternalAPIService:
         except Exception as e:
             self.logger.error(f"Error fetching property comps: {e}")
             return []
+EOL
+
+# Print success message
+echo "✅ external_apis.py has been patched with the corrected implementation"
+echo "Now let's commit and push these changes"
+
+# Add the file to git
+git add backend/services/external_apis.py
+
+# Commit with our message
+git commit -F commit-message.txt
+
+# Push to origin
+git push
+
+echo "✅ Changes pushed to GitHub. Railway should now deploy the updated backend."

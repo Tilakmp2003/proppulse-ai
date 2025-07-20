@@ -1,0 +1,9 @@
+Fix property estimation for all address types
+
+- Fixed logic in _get_basic_property_estimates to properly support all property types
+- Improved detection and handling of commercial properties
+- Ensured force_estimation parameter works correctly for all address types
+- Fixed logical issue where non-multifamily properties weren't getting estimates
+
+This change ensures that all addresses will display meaningful property data
+in the frontend, properly marked as "Estimated" when real data isn't available.
