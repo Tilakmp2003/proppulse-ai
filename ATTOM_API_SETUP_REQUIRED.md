@@ -5,9 +5,11 @@
 Your system is currently **NOT** returning real ATTOM data because:
 
 ### ❌ Missing ATTOM API Key
+
 The backend requires `ATTOM_API_KEY` environment variable to fetch verified property records.
 
 Without this key, the system will return:
+
 - `"property_type": "Not available"`
 - `"units": null`
 - `"confidence": 0`
@@ -16,11 +18,13 @@ Without this key, the system will return:
 ## ✅ How to Get Real ATTOM Data
 
 ### Step 1: Get ATTOM API Key
+
 1. Visit https://api.developer.attomdata.com/
 2. Sign up for API access
 3. Get your API key
 
 ### Step 2: Configure Railway Environment
+
 1. Go to Railway dashboard
 2. Navigate to your backend project
 3. Go to Variables tab
@@ -28,7 +32,9 @@ Without this key, the system will return:
 5. Redeploy the service
 
 ### Step 3: Verify Real Data
+
 After adding the API key, test with:
+
 ```bash
 curl -X POST "https://proppulse-ai-production.up.railway.app/quick-analysis" \
   -H "Content-Type: application/json" \
@@ -36,6 +42,7 @@ curl -X POST "https://proppulse-ai-production.up.railway.app/quick-analysis" \
 ```
 
 You should see:
+
 - `"confidence": 95`
 - `"sources": ["ATTOM Data API"]`
 - `"notes": "Verified property records from ATTOM Data"`
@@ -46,7 +53,7 @@ You should see:
 ```python
 # Priority order:
 1. ATTOM API (Real data) - confidence: 95%
-2. Public APIs (Limited real data) - confidence: 60% 
+2. Public APIs (Limited real data) - confidence: 60%
 3. No data available - confidence: 0%
 
 # NO MORE ESTIMATES OR MOCK DATA
@@ -57,7 +64,7 @@ You should see:
 ```json
 {
   "address": "5325 Newcastle Ave UNIT 319, Encino, CA 91316",
-  "property_type": "Multifamily", 
+  "property_type": "Multifamily",
   "units": 48,
   "square_footage": 40800,
   "year_built": 1985,
@@ -74,7 +81,7 @@ You should see:
 
 ```json
 {
-  "address": "5325 Newcastle Ave UNIT 319, Encino, CA 91316", 
+  "address": "5325 Newcastle Ave UNIT 319, Encino, CA 91316",
   "property_type": "Not available",
   "units": null,
   "square_footage": null,
@@ -89,6 +96,7 @@ You should see:
 ## 🎯 Summary
 
 **To get real property data instead of "Not available":**
+
 1. ✅ Code is ready (already deployed)
 2. ❌ Need ATTOM_API_KEY in Railway environment variables
 3. ✅ Frontend already handles real data display
