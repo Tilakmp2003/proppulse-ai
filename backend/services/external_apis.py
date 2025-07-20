@@ -347,10 +347,14 @@ class ExternalAPIService:
         
         return formatted
     
-    def _get_basic_property_estimates(self, address: str) -> Optional[Dict[str, Any]]:
+    def _get_basic_property_estimates(self, address: str, force_estimation: bool = False) -> Optional[Dict[str, Any]]:
         """
         Provide basic property estimates based on address analysis when APIs are unavailable
         This is transparent about being estimates, not real data
+        
+        Parameters:
+        - address: The property address
+        - force_estimation: If True, provide estimates even for non-multifamily properties
         """
         try:
             import re
@@ -366,8 +370,8 @@ class ExternalAPIService:
             unit_match = re.search(r'unit\s*(\d+)|apt\s*(\d+)|#\s*(\d+)', address_lower)
             has_unit_number = bool(unit_match)
             
-            # Basic estimates based on address patterns
-            if is_likely_multifamily or has_unit_number:
+            # Basic estimates based on address patterns - either multifamily or forced estimation
+            if is_likely_multifamily or has_unit_number or force_estimation:
                 property_type = "Multifamily"
                 
                 # Estimate units based on address clues
@@ -384,18 +388,33 @@ class ExternalAPIService:
                 
                 # Basic square footage estimate
                 estimated_sqft = estimated_units * 850  # Average unit size
+                property_type = "Multifamily"
                 
                 # Basic value estimate (conservative)
                 estimated_value = estimated_units * 55000  # Conservative per-unit value
+            elif force_estimation:
+                # For non-multifamily addresses with force_estimation
+                if 'commercial' in address_lower or 'business' in address_lower or 'office' in address_lower or 'plaza' in address_lower:
+                    property_type = "Commercial"
+                    estimated_units = 1
+                    estimated_sqft = 5000  # Conservative commercial estimate
+                    estimated_value = estimated_sqft * 250  # $250 per sqft
+                else:
+                    property_type = "Single Family"
+                    estimated_units = 1
+                    estimated_sqft = 2000  # Average single family home
+                    estimated_value = 450000  # Conservative home value
+            else:
+                return None  # No estimation if not multifamily and not forced
                 
-                return {
-                    "address": address,
-                    "property_type": property_type,
-                    "units": estimated_units,
-                    "square_footage": estimated_sqft,
-                    "estimated_value": estimated_value,
-                    "price_per_unit": int(estimated_value / estimated_units),
-                    "price_per_sqft": round(estimated_value / estimated_sqft, 2),
+            return {
+                "address": address,
+                "property_type": property_type,
+                "units": estimated_units,
+                "square_footage": estimated_sqft,
+                "estimated_value": estimated_value,
+                "price_per_unit": int(estimated_value / max(estimated_units, 1)),
+                "price_per_sqft": round(estimated_value / estimated_sqft, 2),
                     
                     "market_data": {
                         "avg_rent_per_unit": estimated_units * 18,  # Conservative rent estimate
@@ -404,14 +423,12 @@ class ExternalAPIService:
                     
                     "data_quality": {
                         "is_estimated_data": True,
-                        "confidence": 25,  # Low confidence
+                        "confidence": 25,  # Low confidence for most properties
                         "sources": ["Address Analysis"],
                         "last_updated": "2025-07-20",
                         "notes": "⚠️ ESTIMATES ONLY - Based on address analysis when real data APIs unavailable. Use for initial screening only."
                     }
                 }
-            
-            return None  # Don't estimate for non-multifamily
             
         except Exception as e:
             self.logger.error(f"Error in basic estimates: {e}")
