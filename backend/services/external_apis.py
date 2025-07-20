@@ -129,7 +129,7 @@ class ExternalAPIService:
             
             # First check for multifamily properties
             if is_likely_multifamily or has_unit_number:
-                property_type = "Multifamily"
+                
                 
                 # Estimate units based on address clues
                 if unit_match:
