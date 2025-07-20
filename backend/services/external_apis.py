@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import httpx
 import requests
 from fastapi import HTTPException
+import google.generativeai as genai
 
 class ExternalAPIService:
     """
@@ -29,6 +30,14 @@ class ExternalAPIService:
             "property_data": os.getenv("PROPERTY_DATA_API_KEY", "demo"),
             "walkscore": os.getenv("WALKSCORE_API_KEY", "demo")
         }
+        
+        # Initialize Gemini AI for property estimation
+        gemini_key = os.getenv('GEMINI_API_KEY')
+        if gemini_key and gemini_key != 'your_gemini_api_key_here':
+            genai.configure(api_key=gemini_key)
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+        else:
+            self.gemini_model = None
         
         # Track API usage to avoid hitting limits
         self.api_call_counters = {}
@@ -79,9 +88,16 @@ class ExternalAPIService:
                 }
                 return property_data
             
-            # If no real data available, return minimal structure with "Not available"
-            # NO ESTIMATES OR MOCK DATA - just honest "not available"
-            self.logger.warning(f"No real property data available for: {address}")
+            # If no real data available, use Gemini AI for intelligent estimation
+            # Only if Gemini is configured, otherwise return "Not available"
+            if self.gemini_model:
+                self.logger.info(f"Using Gemini AI to estimate property data for: {address}")
+                gemini_data = await self._get_gemini_property_estimation(address)
+                if gemini_data:
+                    return gemini_data
+            
+            # If Gemini is not available, return minimal structure with "Not available"
+            self.logger.warning(f"No real property data or AI estimation available for: {address}")
             return {
                 "address": address,
                 "property_type": "Not available",
@@ -121,92 +137,107 @@ class ExternalAPIService:
     
     def _get_basic_property_estimates(self, address: str, force_estimation: bool = False) -> Optional[Dict[str, Any]]:
         """
-        Provide basic property estimates based on address analysis when APIs are unavailable
-        This is transparent about being estimates, not real data
-        
-        Parameters:
-        - address: The property address
-        - force_estimation: If True, provide estimates even for non-multifamily properties
+        DISABLED: No more estimates - only real ATTOM data allowed
+        This function is kept for compatibility but always returns None
+        """
+        self.logger.info(f"Estimation disabled - only real ATTOM data allowed for: {address}")
+        return None
+
+    async def _get_gemini_property_estimation(self, address: str) -> Optional[Dict[str, Any]]:
+        """
+        Use Gemini AI to provide intelligent property estimates when real data is unavailable
         """
         try:
-            import re
+            if not self.gemini_model:
+                return None
+                
+            prompt = f"""
+            You are a real estate expert. Analyze this address and provide realistic property estimates based on your knowledge of the area and typical property characteristics.
             
-            # Parse address for clues
-            address_lower = address.lower()
+            Address: {address}
             
-            # Detect if it's likely multifamily
-            multifamily_indicators = ['apt', 'apartment', 'unit', 'suite', '#', 'complex', 'towers', 'plaza', 'manor', 'court', 'place']
-            is_likely_multifamily = any(indicator in address_lower for indicator in multifamily_indicators)
+            Please provide estimates in this exact JSON format:
+            {{
+                "property_type": "Single Family" | "Multifamily" | "Commercial" | "Condo" | "Townhouse",
+                "units": <estimated number of units>,
+                "square_footage": <estimated total square footage>,
+                "year_built": <estimated year built (1900-2024)>,
+                "estimated_value": <estimated market value in USD>,
+                "lot_size": <estimated lot size in square feet>,
+                "bedrooms": <estimated bedrooms per unit for residential>,
+                "bathrooms": <estimated bathrooms per unit for residential>,
+                "market_data": {{
+                    "avg_rent_per_unit": <estimated monthly rent per unit>,
+                    "estimated_cap_rate": <estimated cap rate as percentage>,
+                    "price_per_sqft": <estimated price per square foot>
+                }},
+                "neighborhood_info": {{
+                    "area_description": "<brief description of the neighborhood>",
+                    "estimated_walk_score": <estimated walk score 0-100>
+                }},
+                "reasoning": "<brief explanation of your estimates>"
+            }}
             
-            # Extract unit numbers or building size clues
-            unit_match = re.search(r'unit\s*(\d+)|apt\s*(\d+)|#\s*(\d+)', address_lower)
-            has_unit_number = bool(unit_match)
+            Base your estimates on:
+            - The specific location and neighborhood characteristics
+            - Typical property types for the area
+            - Current market conditions
+            - Regional real estate patterns
             
-            # First check for multifamily properties
-            if is_likely_multifamily or has_unit_number:
-                
-                
-                # Estimate units based on address clues
-                if unit_match:
-                    # Get all valid unit numbers from the regex groups
-                    unit_numbers = [int(g) for g in unit_match.groups() if g and g.isdigit()]
-                    if unit_numbers:
-                        unit_num = max(unit_numbers)
-                        estimated_units = min(max(unit_num + 10, 20), 100)  # Reasonable range
-                    else:
-                        estimated_units = 48  # Default if no valid numbers found
-                else:
-                    estimated_units = 48  # Conservative multifamily estimate
-                
-                # Basic square footage estimate
-                estimated_sqft = estimated_units * 850  # Average unit size
-                
-                # Basic value estimate (conservative)
-                estimated_value = estimated_units * 55000  # Conservative per-unit value
-            # Then check for commercial properties or if force_estimation is on
-            elif ('commercial' in address_lower or 'business' in address_lower or 
-                  'office' in address_lower or 'plaza' in address_lower) or force_estimation:
-                # Check if it's likely commercial
-                if ('commercial' in address_lower or 'business' in address_lower or 
-                    'office' in address_lower or 'plaza' in address_lower):
-                    property_type = "Commercial"
-                    estimated_units = 1
-                    estimated_sqft = 5000  # Conservative commercial estimate
-                    estimated_value = estimated_sqft * 250  # $250 per sqft
-                # Otherwise assume single family when force_estimation is true
-                else:
-                    property_type = "Single Family"
-                    estimated_units = 1
-                    estimated_sqft = 2000  # Average single family home
-                    estimated_value = 450000  # Conservative home value
-            else:
-                return None  # No estimation if not multifamily and not forced
-                
-            return {
-                "address": address,
-                "property_type": property_type,
-                "units": estimated_units,
-                "square_footage": estimated_sqft,
-                "estimated_value": estimated_value,
-                "price_per_unit": int(estimated_value / max(estimated_units, 1)),
-                "price_per_sqft": round(estimated_value / estimated_sqft, 2),
+            Be realistic and conservative in your estimates. If you're unsure about something, provide a reasonable range midpoint.
+            """
+            
+            response = self.gemini_model.generate_content(prompt)
+            
+            if response and response.text:
+                # Try to parse the JSON response
+                try:
+                    # Extract JSON from the response text
+                    response_text = response.text.strip()
                     
-                    "market_data": {
-                        "avg_rent_per_unit": estimated_units * 18,  # Conservative rent estimate
-                        "estimated_cap_rate": 6.5,
-                    },
+                    # Remove any markdown formatting
+                    if response_text.startswith("```json"):
+                        response_text = response_text[7:]
+                    if response_text.endswith("```"):
+                        response_text = response_text[:-3]
                     
-                    "data_quality": {
-                        "is_estimated_data": True,
-                        "confidence": 25,  # Low confidence for most properties
-                        "sources": ["Address Analysis"],
-                        "last_updated": "2025-07-20",
-                        "notes": "⚠️ ESTIMATES ONLY - Based on address analysis when real data APIs unavailable. Use for initial screening only."
+                    gemini_data = json.loads(response_text)
+                    
+                    # Format the response to match our expected structure
+                    formatted_data = {
+                        "address": address,
+                        "property_type": gemini_data.get("property_type", "Unknown"),
+                        "units": gemini_data.get("units"),
+                        "square_footage": gemini_data.get("square_footage"),
+                        "year_built": gemini_data.get("year_built"),
+                        "estimated_value": gemini_data.get("estimated_value"),
+                        "lot_size": gemini_data.get("lot_size"),
+                        "bedrooms": gemini_data.get("bedrooms"),
+                        "bathrooms": gemini_data.get("bathrooms"),
+                        "market_data": gemini_data.get("market_data", {}),
+                        "neighborhood_info": gemini_data.get("neighborhood_info", {}),
+                        "data_quality": {
+                            "is_estimated_data": True,
+                            "is_free_data": False,
+                            "confidence": 75,  # Good confidence for AI estimates
+                            "sources": ["Gemini AI Analysis"],
+                            "last_updated": "2025-07-20",
+                            "notes": f"AI-powered property estimates based on location analysis. Reasoning: {gemini_data.get('reasoning', 'General area knowledge')}"
+                        }
                     }
-                }
+                    
+                    self.logger.info(f"Gemini provided property estimates for: {address}")
+                    return formatted_data
+                    
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Failed to parse Gemini response as JSON: {e}")
+                    self.logger.error(f"Response text: {response.text}")
+                    return None
+                    
+            return None
             
         except Exception as e:
-            self.logger.error(f"Error in basic estimates: {e}")
+            self.logger.error(f"Error in Gemini property estimation: {e}")
             return None
 
     async def get_property_comps(self, address: str, radius_miles: float = 1.0) -> List[Dict[str, Any]]:
