@@ -20,6 +20,7 @@ const mockPropertyData = {
     marketValue: 2950000,
     neighborhood: "Downtown Austin",
     walkScore: 89,
+    dataQuality: null,
   },
   "456 Oak Avenue, Dallas, TX 75201": {
     address: "456 Oak Avenue, Dallas, TX 75201",
@@ -31,6 +32,7 @@ const mockPropertyData = {
     marketValue: 3350000,
     neighborhood: "Deep Ellum",
     walkScore: 76,
+    dataQuality: null,
   },
   "789 Pine Street, Houston, TX 77002": {
     address: "789 Pine Street, Houston, TX 77002",
@@ -42,6 +44,7 @@ const mockPropertyData = {
     marketValue: 1920000,
     neighborhood: "Midtown",
     walkScore: 82,
+    dataQuality: null,
   },
 };
 
@@ -330,10 +333,10 @@ function DocumentsUploadContent() {
                   </svg>
                   <span className="text-sm font-medium">
                     Estimated Data -{" "}
-                    {propertyData.dataQuality.notes || "Limited data available"}
+                    {propertyData.dataQuality?.notes || "Limited data available"}
                   </span>
                 </div>
-              ) : propertyData.dataQuality.isFreeData ? (
+              ) : propertyData.dataQuality?.isFreeData ? (
                 <div className="flex items-center space-x-2 text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
                   <svg
                     className="h-4 w-4"
