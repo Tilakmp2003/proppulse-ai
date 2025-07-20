@@ -318,7 +318,7 @@ function DocumentsUploadContent() {
           {/* Data Quality Indicator */}
           {propertyData.dataQuality && (
             <div className="mt-2">
-              {propertyData.dataQuality?.isEstimatedData ? (
+              {propertyData.dataQuality?.is_estimated_data ? (
                 <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
                   <svg
                     className="h-4 w-4"
@@ -333,10 +333,11 @@ function DocumentsUploadContent() {
                   </svg>
                   <span className="text-sm font-medium">
                     Estimated Data -{" "}
-                    {propertyData.dataQuality?.notes || "Limited data available"}
+                    {propertyData.dataQuality?.notes ||
+                      "Limited data available"}
                   </span>
                 </div>
-              ) : propertyData.dataQuality?.isFreeData ? (
+              ) : propertyData.dataQuality?.is_free_data ? (
                 <div className="flex items-center space-x-2 text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
                   <svg
                     className="h-4 w-4"
