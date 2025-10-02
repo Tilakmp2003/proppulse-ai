@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Building2, Eye, EyeOff } from "lucide-react";
+import { Building2, Eye, EyeOff, RefreshCw } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,8 +28,55 @@ export default function LoginPage() {
   const [loginMethod, setLoginMethod] = useState<"password" | "otp">(
     "password"
   );
+  const [resendTimer, setResendTimer] = useState(0);
+  const [autoResendEnabled, setAutoResendEnabled] = useState(false);
+  const [resendAttempts, setResendAttempts] = useState(0);
   const router = useRouter();
   const { refreshAuth, signInUser } = useAuth();
+
+  // Timer effect for resend countdown
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            // Timer finished
+            if (autoResendEnabled && resendAttempts < 3) {
+              // Auto-resend if enabled and under limit
+              handleAutoResend();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [resendTimer, autoResendEnabled, resendAttempts]);
+
+  const startResendTimer = (seconds: number = 30) => {
+    setResendTimer(seconds);
+  };
+
+  const handleAutoResend = async () => {
+    if (resendAttempts >= 3) {
+      setAutoResendEnabled(false);
+      return;
+    }
+
+    try {
+      setResendAttempts(prev => prev + 1);
+      await handleResendOTP();
+    } catch (error) {
+      console.error("Auto-resend failed:", error);
+      setAutoResendEnabled(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +175,11 @@ export default function LoginPage() {
         setLoginMethod("otp");
         setError("");
         
+        // Start timer if provided in response
+        if (data.can_resend_in) {
+          startResendTimer(data.can_resend_in);
+        }
+        
         // Show appropriate message based on delivery method
         if (data.otp) {
           // Fallback display method
@@ -152,8 +204,49 @@ export default function LoginPage() {
   };
 
   const handleResendOTP = async () => {
-    setOtpSent(false);
-    await handleSendOTP();
+    if (resendTimer > 0) {
+      setError(`Please wait ${resendTimer} seconds before requesting another OTP`);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: email,
+          phone_number: phoneNumber || null
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setResendAttempts(prev => prev + 1);
+        
+        // Start timer again
+        if (data.can_resend_in) {
+          startResendTimer(data.can_resend_in);
+        }
+        
+        // Show success message
+        if (data.otp_code) {
+          alert(`New OTP sent! Development code: ${data.otp_code}`);
+        } else {
+          alert('✅ New verification code sent successfully!');
+        }
+      } else {
+        setError(data.detail || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      setError('Network error while resending OTP');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResendConfirmation = async () => {
@@ -356,16 +449,39 @@ export default function LoginPage() {
                       <p className="text-xs text-gray-500">
                         Code sent to {phoneNumber || email}
                       </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleResendOTP}
-                        disabled={loading}
-                        className="text-xs"
-                      >
-                        Resend Code
-                      </Button>
+                      
+                      {/* Timer and Auto-resend Controls */}
+                      <div className="flex items-center justify-between">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleResendOTP}
+                          disabled={loading || resendTimer > 0}
+                          className="text-xs flex items-center gap-1"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                          {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                        </Button>
+                        
+                        {resendAttempts < 3 && (
+                          <label className="flex items-center gap-1 text-xs text-gray-500">
+                            <input
+                              type="checkbox"
+                              checked={autoResendEnabled}
+                              onChange={(e) => setAutoResendEnabled(e.target.checked)}
+                              className="h-3 w-3"
+                            />
+                            Auto-resend
+                          </label>
+                        )}
+                      </div>
+                      
+                      {resendAttempts > 0 && (
+                        <p className="text-xs text-gray-400">
+                          Resend attempts: {resendAttempts}/3
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

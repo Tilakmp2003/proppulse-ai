@@ -73,7 +73,9 @@ class OTPVerification(BaseModel):
     phone_number: Optional[str] = None
 
 # In-memory storage for OTP codes (in production, use Redis or database)
+# Storage for OTP codes and phone verification
 otp_storage = {}
+sms_resend_tracking = {}  # Track resend attempts with timestamps
 
 def generate_otp() -> str:
     """Generate a 6-digit OTP code"""
@@ -115,24 +117,40 @@ def send_sms_otp_verify(phone_number: str) -> dict:
             print(f"Phone number validation failed: {e}")
             return {"success": False, "error": "Invalid Indian phone number format"}
         
-        # Send verification using Twilio Verify Service
+        # Debug Twilio configuration
+        print(f"🔧 Twilio Config Debug:")
+        print(f"   Account SID: {settings.TWILIO_ACCOUNT_SID[:8]}..." if settings.TWILIO_ACCOUNT_SID else "   Account SID: NOT SET")
+        print(f"   Service SID: {settings.TWILIO_VERIFY_SERVICE_SID[:8]}..." if settings.TWILIO_VERIFY_SERVICE_SID else "   Service SID: NOT SET")
+        print(f"   Formatted Phone: {formatted_phone}")
+        
+        # Send verification using Twilio Verify Service with enhanced error handling
         verification = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
                                       .verifications \
-                                      .create(to=formatted_phone, channel='sms')
+                                      .create(
+                                          to=formatted_phone, 
+                                          channel='sms',
+                                          locale='en'  # Ensure English locale
+                                      )
         
-        print(f"Twilio Verify SMS sent successfully to {formatted_phone}")
-        print(f"Verification SID: {verification.sid}, Status: {verification.status}")
+        print(f"✅ Twilio Verify SMS sent successfully to {formatted_phone}")
+        print(f"   Verification SID: {verification.sid}")
+        print(f"   Status: {verification.status}")
+        print(f"   Account SID: {verification.account_sid}")
         
         return {
             "success": True, 
             "sid": verification.sid, 
             "status": verification.status,
-            "phone": formatted_phone
+            "phone": formatted_phone,
+            "channel": "sms"
         }
         
     except Exception as e:
-        print(f"Twilio Verify SMS sending failed: {e}")
-        return {"success": False, "error": str(e)}
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"❌ Twilio Verify SMS sending failed: {e}")
+        print(f"📝 Full error details: {error_details}")
+        return {"success": False, "error": str(e), "details": error_details}
 
 def verify_sms_otp(phone_number: str, code: str) -> dict:
     """Verify OTP using Twilio Verify Service"""
@@ -727,11 +745,20 @@ async def send_otp(request: OTPRequest):
                         "method": "twilio_verify",
                         "expires_at": datetime.utcnow() + timedelta(minutes=10)
                     }
+                    
+                    # Initialize resend tracking
+                    sms_resend_tracking[request.email] = {
+                        "attempts": 1,
+                        "last_resend": datetime.utcnow()
+                    }
+                    
                     return {
                         "message": "OTP sent successfully to your phone via SMS.", 
                         "success": True, 
                         "method": "sms",
-                        "phone": sms_result.get("phone")
+                        "phone": sms_result.get("phone"),
+                        "can_resend_in": 30,
+                        "expires_in": 600  # 10 minutes
                     }
                 else:
                     # SMS failed, try email fallback
@@ -752,6 +779,13 @@ async def send_otp(request: OTPRequest):
             "expires_at": expiration
         }
         
+        # Initialize resend tracking
+        if request.email not in sms_resend_tracking:
+            sms_resend_tracking[request.email] = {
+                "attempts": 1,
+                "last_resend": datetime.utcnow()
+            }
+        
         # Email fallback (existing implementation)
         try:
             # Use a timeout to prevent hanging
@@ -764,15 +798,35 @@ async def send_otp(request: OTPRequest):
                 email_sent = future.result(timeout=5)
                 
             if email_sent:
-                return {"message": "OTP sent successfully to your email.", "success": True, "method": "email"}
+                return {
+                    "message": "OTP sent successfully to your email.", 
+                    "success": True, 
+                    "method": "email",
+                    "can_resend_in": 30,
+                    "expires_in": 600
+                }
             else:
                 # Both SMS and email failed, display OTP for user
-                return {"message": f"SMS and email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp, "method": "display"}
+                return {
+                    "message": f"SMS and email delivery failed. Your OTP code is: {otp}", 
+                    "success": True, 
+                    "otp": otp, 
+                    "method": "display",
+                    "can_resend_in": 30,
+                    "expires_in": 600
+                }
                 
         except Exception as email_error:
             print(f"Email sending error: {email_error}")
             # Both SMS and email failed, display OTP for user
-            return {"message": f"SMS and email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp, "method": "display"}
+            return {
+                "message": f"SMS and email delivery failed. Your OTP code is: {otp}", 
+                "success": True, 
+                "otp": otp, 
+                "method": "display",
+                "can_resend_in": 30,
+                "expires_in": 600
+            }
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send OTP: {str(e)}")
@@ -847,6 +901,121 @@ async def verify_otp(request: OTPVerification):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to verify OTP: {str(e)}")
+
+@app.post("/auth/resend-otp")
+async def resend_otp(request: OTPRequest):
+    """Resend OTP with rate limiting and tracking"""
+    try:
+        # Check if there's an existing OTP for this email
+        if request.email not in otp_storage:
+            raise HTTPException(status_code=400, detail="No active OTP session found. Please start a new login.")
+        
+        # Rate limiting: Check resend attempts
+        current_time = datetime.utcnow()
+        if request.email in sms_resend_tracking:
+            last_resend = sms_resend_tracking[request.email]["last_resend"]
+            attempts = sms_resend_tracking[request.email]["attempts"]
+            
+            # Check if 30 seconds have passed since last resend
+            if (current_time - last_resend).total_seconds() < 30:
+                remaining_time = 30 - int((current_time - last_resend).total_seconds())
+                raise HTTPException(
+                    status_code=429, 
+                    detail=f"Please wait {remaining_time} seconds before requesting another code"
+                )
+            
+            # Check daily limit (max 5 resends per email per day)
+            if attempts >= 5:
+                raise HTTPException(status_code=429, detail="Maximum daily resend limit reached")
+        
+        # Initialize or update resend tracking
+        if request.email not in sms_resend_tracking:
+            sms_resend_tracking[request.email] = {"attempts": 0, "last_resend": current_time}
+        
+        sms_resend_tracking[request.email]["attempts"] += 1
+        sms_resend_tracking[request.email]["last_resend"] = current_time
+        
+        # Try Twilio Verify SMS first if phone number provided
+        if request.phone_number:
+            try:
+                import asyncio
+                from concurrent.futures import ThreadPoolExecutor
+                
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(send_sms_otp_verify, request.phone_number)
+                    sms_result = future.result(timeout=10)
+                    
+                if sms_result["success"]:
+                    # Update OTP storage with new expiration
+                    otp_storage[request.email] = {
+                        "phone_number": request.phone_number,
+                        "method": "twilio_verify",
+                        "expires_at": datetime.utcnow() + timedelta(minutes=10),
+                        "resent": True
+                    }
+                    return {
+                        "message": "OTP resent successfully to your phone via SMS.", 
+                        "success": True, 
+                        "method": "sms",
+                        "phone": sms_result.get("phone"),
+                        "can_resend_in": 30
+                    }
+                else:
+                    print(f"Twilio Verify SMS resend failed: {sms_result.get('error')}")
+                    
+            except Exception as sms_error:
+                print(f"Twilio Verify SMS resend error: {sms_error}")
+        
+        # Generate new traditional OTP for email fallback
+        otp = generate_otp()
+        
+        # Update OTP storage
+        otp_storage[request.email] = {
+            "otp": otp,
+            "method": "email",
+            "expires_at": datetime.utcnow() + timedelta(minutes=10),
+            "resent": True
+        }
+        
+        # Email fallback
+        try:
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+            
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(send_otp_email, request.email, otp)
+                email_sent = future.result(timeout=5)
+                
+            if email_sent:
+                return {
+                    "message": "OTP resent successfully to your email.", 
+                    "success": True, 
+                    "method": "email",
+                    "can_resend_in": 30
+                }
+            else:
+                return {
+                    "message": f"SMS and email delivery failed. Your OTP code is: {otp}", 
+                    "success": True, 
+                    "otp": otp, 
+                    "method": "display",
+                    "can_resend_in": 30
+                }
+                
+        except Exception as email_error:
+            print(f"Email resend error: {email_error}")
+            return {
+                "message": f"SMS and email delivery failed. Your OTP code is: {otp}", 
+                "success": True, 
+                "otp": otp, 
+                "method": "display",
+                "can_resend_in": 30
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resend OTP: {str(e)}")
 
 @app.post("/quick-analysis")
 async def quick_property_analysis(request: dict):
