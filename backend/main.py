@@ -639,13 +639,15 @@ async def send_otp(request: OTPRequest):
                 email_sent = future.result(timeout=5)
                 
             if email_sent:
-                return {"message": "OTP sent successfully. Check Railway logs if email delivery fails.", "success": True}
+                return {"message": "OTP sent successfully to your email.", "success": True}
             else:
-                return {"message": "OTP generated but email sending failed. Check Railway logs for the OTP code.", "success": True}
+                # Email failed, return OTP in response for development
+                return {"message": f"Email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp}
                 
         except Exception as email_error:
             print(f"Email sending error: {email_error}")
-            return {"message": f"OTP generated: {otp}. Email sending failed. Use this OTP to login.", "success": True}
+            # Email failed, return OTP in response for development  
+            return {"message": f"Email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send OTP: {str(e)}")

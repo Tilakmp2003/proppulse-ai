@@ -114,9 +114,17 @@ export default function LoginPage() {
         setOtpSent(true);
         setLoginMethod("otp");
         setError("");
-        alert(
-          "6-digit OTP code sent to your email! Please check your inbox and enter the code below."
-        );
+        
+        // Check if OTP is included in response (for development when email fails)
+        if (data.otp) {
+          alert(
+            `Email delivery failed, but your OTP code is: ${data.otp}\n\nPlease enter this code below to login.`
+          );
+        } else {
+          alert(
+            "6-digit OTP code sent to your email! Please check your inbox and enter the code below."
+          );
+        }
       }
     } catch (err) {
       setError("Failed to send OTP. Please try again.");
