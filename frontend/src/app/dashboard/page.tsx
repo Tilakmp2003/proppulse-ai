@@ -61,20 +61,7 @@ const mockDeals = [
 interface Analysis {
   id: string;
   property_address: string;
-  analysis_result: {
-    pass_fail: "PASS" | "FAIL";
-    score: number;
-    metrics: {
-      cap_rate: number;
-      cash_on_cash: number;
-      irr: number;
-      debt_service_coverage: number;
-    };
-    property_details: {
-      market_value: number;
-      property_type: string;
-    };
-  };
+  analysis_result: any;
   created_at: string;
 }
 
@@ -153,27 +140,8 @@ export default function DashboardPage() {
           }
         } catch (error) {
           console.error("Error fetching analyses:", error);
-          // Fallback to mock data
-          const fallbackData = mockDeals.map((deal) => ({
-            id: deal.id,
-            property_address: deal.address,
-            analysis_result: {
-              pass_fail: "PASS" as const,
-              score: deal.confidence,
-              metrics: {
-                cap_rate: deal.capRate,
-                cash_on_cash: deal.cocReturn,
-                irr: 14.5,
-                debt_service_coverage: 1.3,
-              },
-              property_details: {
-                market_value: deal.dealSize,
-                property_type: deal.propertyType,
-              },
-            },
-            created_at: deal.analyzedAt,
-          }));
-          setAnalyses(fallbackData);
+          // No fallback - show empty state for real user experience
+          setAnalyses([]);
         } finally {
           setLoadingAnalyses(false);
         }
