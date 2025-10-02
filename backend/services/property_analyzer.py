@@ -8,6 +8,7 @@ import asyncio
 import google.generativeai as genai
 from models import DealAnalysisResult, DealStatus, DealMetrics, PropertyDetails, FinancialSummary, MarketData
 from config import settings
+from fastapi import HTTPException
 import os
 
 logger = logging.getLogger(__name__)
@@ -26,19 +27,6 @@ class PropertyAnalyzer:
             self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
         else:
             self.gemini_model = None
-        
-        self.default_assumptions = {
-            "vacancy_rate": 5.0,  # 5%
-            "management_fee_rate": 8.0,  # 8% of gross income
-            "capex_reserve_rate": 5.0,  # 5% of gross income
-            "annual_rent_growth": 3.0,  # 3% annually
-            "annual_expense_growth": 2.5,  # 2.5% annually
-            "discount_rate": 10.0,  # 10% for NPV calculations
-            "holding_period": 5,  # 5 years
-            "debt_ratio": 75.0,  # 75% LTV
-            "interest_rate": 6.5,  # 6.5% interest rate
-            "loan_term": 30  # 30-year amortization
-        }
     
     async def analyze_deal(
         self, 
@@ -94,8 +82,8 @@ class PropertyAnalyzer:
             
         except Exception as e:
             self.logger.error(f"Error analyzing deal: {str(e)}")
-            # Return default analysis result for demo purposes
-            return self._get_mock_analysis_result()
+            # Raise error instead of returning mock data
+            raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
     
     def _normalize_financial_data(self, financial_data: Dict[str, Any], market_data: Dict[str, Any]) -> Dict[str, Any]:
         """Combine and normalize all financial inputs"""
@@ -103,40 +91,48 @@ class PropertyAnalyzer:
         t12_data = financial_data.get("t12", {})
         rent_roll_data = financial_data.get("rent_roll", {})
         
-        # Get property value from market data
-        property_value = market_data.get("estimated_value", 2500000)  # Default for demo
+        # Get property value from market data - must be real data
+        property_value = market_data.get("estimated_value")
+        if not property_value:
+            raise HTTPException(status_code=400, detail="Property value not available from ATTOM data")
         
-        # Normalize the data structure
+        # Normalize the data structure - REAL DATA ONLY
         normalized = {
-            # Income
-            "gross_rental_income": t12_data.get("gross_rental_income", 420000),
-            "vacancy_loss": t12_data.get("vacancy_loss", 21000),
+            # Income - must come from uploaded files
+            "gross_rental_income": t12_data.get("gross_rental_income"),
+            "vacancy_loss": t12_data.get("vacancy_loss"), 
             "effective_gross_income": 0,
             
-            # Expenses
-            "operating_expenses": t12_data.get("operating_expenses", 168000),
-            "management_fees": t12_data.get("management_fees", 25200),
-            "insurance": t12_data.get("insurance", 18000),
-            "property_taxes": t12_data.get("property_taxes", 42000),
-            "maintenance_repairs": t12_data.get("maintenance_repairs", 35000),
-            "utilities": t12_data.get("utilities", 28000),
+            # Expenses - must come from uploaded files
+            "operating_expenses": t12_data.get("operating_expenses"),
+            "management_fees": t12_data.get("management_fees"),
+            "insurance": t12_data.get("insurance"),
+            "property_taxes": t12_data.get("property_taxes"),
+            "maintenance_repairs": t12_data.get("maintenance_repairs"),
+            "utilities": t12_data.get("utilities"),
             
-            # Net Operating Income
-            "net_operating_income": t12_data.get("net_operating_income", 252000),
+            # Net Operating Income - must be calculated from real data
+            "net_operating_income": t12_data.get("net_operating_income"),
             
-            # Property details
+            # Property details - must come from real data
             "property_value": property_value,
-            "total_units": rent_roll_data.get("total_units", 48),
-            "occupied_units": rent_roll_data.get("occupied_units", 46),
-            "vacancy_rate": rent_roll_data.get("vacancy_rate", 4.17),
-            "average_rent": rent_roll_data.get("average_rent", 875),
+            "total_units": rent_roll_data.get("total_units"),
+            "occupied_units": rent_roll_data.get("occupied_units"),
+            "vacancy_rate": rent_roll_data.get("vacancy_rate"),
+            "average_rent": rent_roll_data.get("average_rent"),
             
-            # Financing assumptions (for demo)
-            "loan_amount": property_value * 0.75,  # 75% LTV
-            "down_payment": property_value * 0.25,  # 25% down
-            "interest_rate": 6.5,  # 6.5% interest rate
-            "loan_term": 30,  # 30 year amortization
+            # Financing assumptions - can use default rates but must validate data
+            "loan_amount": property_value * 0.75 if property_value else None,
+            "down_payment": property_value * 0.25 if property_value else None,
+            "interest_rate": 6.5,  # Market rate assumption
+            "loan_term": 30,  # Standard term
         }
+        
+        # Validate required data exists
+        required_fields = ["gross_rental_income", "net_operating_income", "property_value"]
+        for field in required_fields:
+            if not normalized.get(field):
+                raise HTTPException(status_code=400, detail=f"Required financial data missing: {field}")
         
         # Calculate effective gross income
         normalized["effective_gross_income"] = (
@@ -224,7 +220,7 @@ class PropertyAnalyzer:
     
     def _calculate_npv(self, data: Dict[str, Any]) -> float:
         """Calculate Net Present Value"""
-        discount_rate = self.default_assumptions["discount_rate"] / 100
+        discount_rate = 0.10  # 10% discount rate assumption
         annual_cash_flow = data["annual_cash_flow"]
         initial_investment = data["down_payment"]
         
@@ -242,12 +238,18 @@ class PropertyAnalyzer:
     
     def _extract_property_details(self, market_data: Dict[str, Any]) -> PropertyDetails:
         """Extract property details from market data"""
+        # Validate required property data
+        required_fields = ["year_built", "square_footage", "units"]
+        for field in required_fields:
+            if field not in market_data:
+                raise HTTPException(status_code=400, detail=f"Required property data missing: {field}")
+        
         return PropertyDetails(
-            year_built=market_data.get("year_built", 1995),
-            square_footage=market_data.get("square_footage", 42000),
-            units=market_data.get("units", 48),
-            property_type="Multifamily",
-            market_value=market_data.get("estimated_value", 2500000)
+            year_built=market_data["year_built"],
+            square_footage=market_data["square_footage"], 
+            units=market_data["units"],
+            property_type=market_data.get("property_type", "Multifamily"),
+            market_value=market_data.get("estimated_value")
         )
     
     def _create_financial_summary(self, data: Dict[str, Any]) -> FinancialSummary:
@@ -260,35 +262,44 @@ class PropertyAnalyzer:
         )
     
     def _process_market_data(self, market_data: Dict[str, Any]) -> MarketData:
-        """Process market data into standardized format"""
+        """Process market data into standardized format - REAL DATA ONLY"""
         
-        # Handle market_trends - convert dict to string if needed
-        market_trends_data = market_data.get("market_trends", "Stable rental market with moderate growth potential")
+        # Require real comparable properties from ATTOM data
+        comp_properties = market_data.get("comparables", [])
+        if not comp_properties:
+            raise HTTPException(status_code=400, detail="No comparable properties found in ATTOM data")
+        
+        # Handle market_trends - must be real data
+        market_trends_data = market_data.get("market_trends")
+        if not market_trends_data:
+            raise HTTPException(status_code=400, detail="Market trends data not available")
+            
         if isinstance(market_trends_data, dict):
-            trend = market_trends_data.get("rental_market_trend", "Stable")
+            trend = market_trends_data.get("rental_market_trend", "Unknown")
             drivers = market_trends_data.get("demand_drivers", [])
             risks = market_trends_data.get("risk_factors", [])
             
-            market_trends_str = f"{trend} rental market. "
+            market_trends_str = f"{trend} rental market"
             if drivers:
-                market_trends_str += f"Growth drivers: {', '.join(drivers[:2])}. "
+                market_trends_str += f". Growth drivers: {', '.join(drivers[:2])}"
             if risks:
-                market_trends_str += f"Key risks: {', '.join(risks[:2])}."
+                market_trends_str += f". Key risks: {', '.join(risks[:2])}"
         else:
             market_trends_str = str(market_trends_data)
         
+        neighborhood_score = market_data.get("neighborhood_score")
+        if neighborhood_score is None:
+            raise HTTPException(status_code=400, detail="Neighborhood score not available from data sources")
+        
         return MarketData(
-            comp_properties=market_data.get("comparables", [
-                {"address": "123 Comp St", "price": 2400000, "cap_rate": 6.1},
-                {"address": "456 Similar Ave", "price": 2600000, "cap_rate": 5.9}
-            ]),
-            neighborhood_score=market_data.get("neighborhood_score", 78),
+            comp_properties=comp_properties,
+            neighborhood_score=neighborhood_score,
             market_trends=market_trends_str
         )
     
     def _evaluate_investment(self, metrics: DealMetrics, criteria: Dict[str, Any]) -> DealStatus:
         """Evaluate if deal meets investment criteria"""
-        # Default criteria if none provided
+        # Standard investment criteria if none provided
         min_cap_rate = criteria.get("min_cap_rate", 6.0)
         min_cash_on_cash = criteria.get("min_cash_on_cash", 8.0)
         min_dscr = criteria.get("min_dscr", 1.2)
@@ -323,53 +334,7 @@ class PropertyAnalyzer:
         
         return min(100, max(0, base_score))
     
-    def _get_mock_analysis_result(self) -> DealAnalysisResult:
-        """Return mock analysis result for demo purposes"""
-        return DealAnalysisResult(
-            pass_fail=DealStatus.PASS,
-            score=82.5,
-            metrics=DealMetrics(
-                cap_rate=6.2,
-                cash_on_cash=9.1,
-                irr=13.8,
-                net_present_value=185000,
-                debt_service_coverage=1.35
-            ),
-            property_details=PropertyDetails(
-                year_built=1995,
-                square_footage=42000,
-                units=48,
-                property_type="Multifamily",
-                market_value=2500000
-            ),
-            financial_summary=FinancialSummary(
-                gross_rental_income=420000,
-                operating_expenses=168000,
-                net_operating_income=252000,
-                cash_flow=87500
-            ),
-            market_data=MarketData(
-                comp_properties=[
-                    {"address": "123 Comp St", "price": 2400000, "cap_rate": 6.1},
-                    {"address": "456 Similar Ave", "price": 2600000, "cap_rate": 5.9}
-                ],
-                neighborhood_score=78,
-                market_trends="Stable rental market with moderate growth potential"
-            ),
-            ai_analysis={
-                "market_insights": "Strong multifamily investment with solid 6.2% cap rate and healthy 9.1% cash-on-cash return in Austin market",
-                "recommendation": "BUY",
-                "key_strengths": [
-                    "Above-market cap rate of 6.2%",
-                    "Strong cash-on-cash return of 9.1%",
-                    "Healthy debt coverage ratio of 1.35"
-                ],
-                "key_concerns": [
-                    "Interest rate sensitivity",
-                    "Market volatility risk"
-                ]
-            }
-        )
+    def _extract_property_details(self, market_data: Dict[str, Any]) -> PropertyDetails:
     
     async def generate_pdf_report(self, analysis_data: Dict[str, Any]) -> str:
         """Generate comprehensive PDF report using ReportLab"""
