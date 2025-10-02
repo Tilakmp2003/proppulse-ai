@@ -335,6 +335,17 @@ class PropertyAnalyzer:
         return min(100, max(0, base_score))
     
     def _extract_property_details(self, market_data: Dict[str, Any]) -> PropertyDetails:
+        """Extract property details from market data"""
+        # Default property details if not available in market data
+        return PropertyDetails(
+            address=market_data.get('address', 'N/A'),
+            bedrooms=market_data.get('bedrooms', 0),
+            bathrooms=market_data.get('bathrooms', 0),
+            square_footage=market_data.get('square_footage', 0),
+            lot_size=market_data.get('lot_size', 0),
+            year_built=market_data.get('year_built', 0),
+            property_type=market_data.get('property_type', 'Unknown')
+        )
     
     async def generate_pdf_report(self, analysis_data: Dict[str, Any]) -> str:
         """Generate comprehensive PDF report using ReportLab"""
