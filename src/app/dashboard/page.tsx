@@ -21,43 +21,6 @@ import {
   DollarSign,
 } from "lucide-react";
 
-// Mock data - replace with real API calls
-const mockDeals = [
-  {
-    id: "1",
-    address: "123 Main St, Austin, TX",
-    propertyType: "Multifamily",
-    dealSize: 2400000,
-    cocReturn: 8.9,
-    capRate: 6.2,
-    confidence: 89,
-    status: "analyzed",
-    analyzedAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    address: "456 Oak Avenue, Dallas, TX",
-    propertyType: "Multifamily",
-    dealSize: 3200000,
-    cocReturn: 7.2,
-    capRate: 5.8,
-    confidence: 76,
-    status: "analyzed",
-    analyzedAt: "2024-01-14",
-  },
-  {
-    id: "3",
-    address: "789 Pine Street, Houston, TX",
-    propertyType: "Multifamily",
-    dealSize: 1850000,
-    cocReturn: 9.1,
-    capRate: 6.7,
-    confidence: 92,
-    status: "analyzed",
-    analyzedAt: "2024-01-13",
-  },
-];
-
 interface Analysis {
   id: string;
   property_address: string;
@@ -244,29 +207,9 @@ export default function DashboardPage() {
           }
         } catch (error) {
           console.error("Error fetching analyses:", error);
-          // Fallback to mock data
-          const fallbackData = mockDeals.map((deal) => ({
-            id: deal.id,
-            property_address: deal.address,
-            analysis_result: {
-              pass_fail: "PASS" as const,
-              score: deal.confidence,
-              metrics: {
-                cap_rate: deal.capRate,
-                cash_on_cash: deal.cocReturn,
-                irr: 14.5,
-                debt_service_coverage: 1.3,
-              },
-              property_details: {
-                market_value: deal.dealSize,
-                property_type: deal.propertyType,
-              },
-            },
-            created_at: deal.analyzedAt,
-          }));
-          setAnalyses(fallbackData);
-          // Calculate metrics from fallback data
-          setMetrics(calculateMetrics(fallbackData));
+          // NO FALLBACK DATA - Show empty state instead of dummy data
+          setAnalyses([]);
+          setMetrics(calculateMetrics([]));
         } finally {
           setLoadingAnalyses(false);
         }
