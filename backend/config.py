@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     ZILLOW_API_KEY: Optional[str] = None
     NEIGHBORHOODSCOUT_API_KEY: Optional[str] = None
     RAPIDAPI_KEY: Optional[str] = None
+    ATTOM_API_KEY: Optional[str] = None
     
     # AI APIs
     GEMINI_API_KEY: Optional[str] = None
