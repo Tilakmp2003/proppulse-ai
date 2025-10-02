@@ -9,17 +9,17 @@ alias deactivate 'test $?_OLD_VIRTUAL_PATH != 0 && setenv PATH "$_OLD_VIRTUAL_PA
 # Unset irrelevant variables.
 deactivate nondestructive
 
-setenv VIRTUAL_ENV "/Volumes/project/intern/proppulse-ai/backend/backend_env"
+setenv VIRTUAL_ENV /Volumes/project/intern/proppulse-ai/backend/backend_env
 
 set _OLD_VIRTUAL_PATH="$PATH"
-setenv PATH "$VIRTUAL_ENV/bin:$PATH"
+setenv PATH "$VIRTUAL_ENV/"bin":$PATH"
+setenv VIRTUAL_ENV_PROMPT backend_env
 
 
 set _OLD_VIRTUAL_PROMPT="$prompt"
 
 if (! "$?VIRTUAL_ENV_DISABLE_PROMPT") then
-    set prompt = "(backend_env) $prompt"
-    setenv VIRTUAL_ENV_PROMPT "(backend_env) "
+    set prompt = "("backend_env") $prompt:q"
 endif
 
 alias pydoc python -m pydoc

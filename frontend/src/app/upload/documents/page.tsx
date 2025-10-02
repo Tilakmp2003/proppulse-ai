@@ -99,19 +99,6 @@ function DocumentsUploadContent() {
   const fetchRealPropertyData = async (propertyAddress: string) => {
     setFetchingPropertyData(true);
 
-    // Check if we have mock data for this address
-    const mockDataExists =
-      Object.keys(mockPropertyData).includes(propertyAddress);
-    console.log("Mock data exists for this address?", mockDataExists);
-
-    // If we have mock data and it's a development environment, use the mock data
-    if (mockDataExists && process.env.NODE_ENV === "development") {
-      console.log("Using mock data for:", propertyAddress);
-      // We don't set realPropertyData, so it will fall back to mock data
-      setFetchingPropertyData(false);
-      return;
-    }
-
     try {
       const API_BASE_URL =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -161,14 +148,10 @@ function DocumentsUploadContent() {
           realPropertyData.analysis_result?.property_details?.market_value,
         // Check both neighborhood_info and neighborhood_data
         neighborhood:
-          realPropertyData.analysis_result?.neighborhood_info
-            ?.location_quality ||
-          realPropertyData.analysis_result?.neighborhood_data?.location_quality,
+          realPropertyData.analysis_result?.neighborhood_info?.area_description,
         walkScore:
           realPropertyData.analysis_result?.neighborhood_info
-            ?.walkability_score ||
-          realPropertyData.analysis_result?.neighborhood_data
-            ?.walkability_score,
+            ?.estimated_walk_score,
         // Add data quality information from market data
         dataQuality:
           realPropertyData.analysis_result?.market_data?.data_quality,

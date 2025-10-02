@@ -154,10 +154,10 @@ class ExternalAPIService:
                     "price_per_sqft": <estimated price per square foot>
                 }},
                 "neighborhood_info": {{
-                    "area_description": "<brief description of the neighborhood>",
-                    "estimated_walk_score": <estimated walk score 0-100>
+                    "area_description": "<brief description of the neighborhood, e.g., 'Downtown Austin', 'Suburban area of Dallas'>",
+                    "estimated_walk_score": <estimated walk score 0-100, e.g., 75>
                 }},
-                "reasoning": "<brief explanation of your estimates>"
+                "reasoning": "<brief explanation of your estimates, including why you chose the neighborhood description and walk score>"
             }}
             
             Base your estimates on:
@@ -166,7 +166,7 @@ class ExternalAPIService:
             - Current market conditions
             - Regional real estate patterns
             
-            Be realistic and conservative in your estimates. If you're unsure about something, provide a reasonable range midpoint.
+            Be realistic and conservative in your estimates. If you're unsure about something, provide a reasonable range midpoint. Always provide a value for `area_description` and `estimated_walk_score` in `neighborhood_info`.
             """
             
             response = self.gemini_model.generate_content(prompt)
@@ -185,6 +185,30 @@ class ExternalAPIService:
                     
                     gemini_data = json.loads(response_text)
                     
+                    # Extract neighborhood_info, with fallback if Gemini doesn't adhere strictly
+                    neighborhood_info = gemini_data.get("neighborhood_info", {})
+                    area_description = neighborhood_info.get("area_description")
+                    estimated_walk_score = neighborhood_info.get("estimated_walk_score")
+
+                    # Fallback: If area_description or walk_score are missing, try to infer from reasoning
+                    if not area_description and gemini_data.get("reasoning"):
+                        # Simple attempt to extract a neighborhood name from reasoning
+                        match = re.search(r'(?:in|of)\s+([A-Za-z\s]+(?:area|neighborhood|district)?)', gemini_data["reasoning"], re.IGNORECASE)
+                        if match:
+                            area_description = match.group(1).strip()
+                        else:
+                            area_description = "General Area" # Default if no specific neighborhood found
+
+                    if estimated_walk_score is None:
+                        # Assign a default walk score if not provided by Gemini
+                        estimated_walk_score = 60 # A reasonable default for most urban/suburban areas
+
+                    # Ensure neighborhood_info is always populated
+                    final_neighborhood_info = {
+                        "area_description": area_description,
+                        "estimated_walk_score": estimated_walk_score
+                    }
+                    
                     # Format the response to match our expected structure
                     formatted_data = {
                         "address": address,
@@ -197,7 +221,7 @@ class ExternalAPIService:
                         "bedrooms": gemini_data.get("bedrooms"),
                         "bathrooms": gemini_data.get("bathrooms"),
                         "market_data": gemini_data.get("market_data", {}),
-                        "neighborhood_info": gemini_data.get("neighborhood_info", {}),
+                        "neighborhood_info": final_neighborhood_info, # Use the potentially updated info
                         "data_quality": {
                             "is_estimated_data": True,
                             "is_free_data": False,

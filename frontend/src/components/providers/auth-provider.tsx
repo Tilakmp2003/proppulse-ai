@@ -89,8 +89,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state change:", event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        // User signed in successfully
+        if (session.user.email_confirmed_at) {
+          setUser(session.user);
+          // Only redirect to dashboard if we're not already there and not on callback page
+          if (typeof window !== 'undefined' && 
+              !window.location.pathname.includes('/dashboard') && 
+              !window.location.pathname.includes('/callback')) {
+            window.location.href = '/dashboard';
+          }
+        } else {
+          setUser(null);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      } else if (session?.user) {
         // Only set user if email is confirmed
         if (session.user.email_confirmed_at) {
           setUser(session.user);

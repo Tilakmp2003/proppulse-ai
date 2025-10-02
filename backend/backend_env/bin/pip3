@@ -1,4 +1,4 @@
-#!/Volumes/project/intern/proppulse-ai/backend/backend_env/bin/python
+#!/Volumes/project/intern/proppulse-ai/backend/backend_env/bin/python3.13
 # -*- coding: utf-8 -*-
 import re
 import sys
