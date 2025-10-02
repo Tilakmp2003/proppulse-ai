@@ -1,0 +1,14 @@
+[providers]
+python = "3.11"
+
+[phases.setup]
+nixpkgsArchive = "de33b1b3df719133e61eb3dbe70e2c59ec6a6aa8"
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["echo 'Build phase complete'"]
+
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"
