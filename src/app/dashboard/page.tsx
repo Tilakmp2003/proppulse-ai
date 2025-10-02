@@ -109,12 +109,101 @@ export default function DashboardPage() {
   const [loadingAnalyses, setLoadingAnalyses] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Dynamic metrics state
+  const [metrics, setMetrics] = useState({
+    totalDeals: 0,
+    averageDealSize: 0,
+    passRate: 0,
+    hoursSaved: 0,
+    changes: {
+      totalDeals: 0,
+      averageDealSize: 0,
+      passRate: 0,
+      hoursSaved: 0,
+    }
+  });
+
   // Quick analysis state
   const [quickAddress, setQuickAddress] = useState("");
   const [quickAnalysisResult, setQuickAnalysisResult] =
     useState<QuickAnalysisResult | null>(null);
   const [loadingQuickAnalysis, setLoadingQuickAnalysis] = useState(false);
   const [showQuickResults, setShowQuickResults] = useState(false);
+
+  // Calculate dynamic metrics from analyses data
+  const calculateMetrics = (analysesData: Analysis[]) => {
+    if (analysesData.length === 0) {
+      return {
+        totalDeals: 0,
+        averageDealSize: 0,
+        passRate: 0,
+        hoursSaved: 0,
+        changes: {
+          totalDeals: 0,
+          averageDealSize: 0,
+          passRate: 0,
+          hoursSaved: 0,
+        }
+      };
+    }
+
+    // Get current month's data
+    const currentDate = new Date();
+    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+
+    const currentMonthAnalyses = analysesData.filter(analysis => 
+      new Date(analysis.created_at) >= currentMonthStart
+    );
+    
+    const lastMonthAnalyses = analysesData.filter(analysis => {
+      const date = new Date(analysis.created_at);
+      return date >= lastMonthStart && date <= lastMonthEnd;
+    });
+
+    // Calculate current metrics
+    const totalDeals = analysesData.length;
+    const totalValue = analysesData.reduce((sum, analysis) => 
+      sum + (analysis.analysis_result.property_details.market_value || 0), 0
+    );
+    const averageDealSize = totalDeals > 0 ? totalValue / totalDeals : 0;
+    
+    const passedDeals = analysesData.filter(analysis => 
+      analysis.analysis_result.pass_fail === "PASS"
+    ).length;
+    const passRate = totalDeals > 0 ? (passedDeals / totalDeals) * 100 : 0;
+    
+    // Estimate hours saved (assuming 8 hours per manual analysis)
+    const hoursSaved = totalDeals * 8;
+
+    // Calculate last month metrics for comparison
+    const lastMonthTotalDeals = lastMonthAnalyses.length;
+    const lastMonthTotalValue = lastMonthAnalyses.reduce((sum, analysis) => 
+      sum + (analysis.analysis_result.property_details.market_value || 0), 0
+    );
+    const lastMonthAverageDealSize = lastMonthTotalDeals > 0 ? lastMonthTotalValue / lastMonthTotalDeals : 0;
+    
+    const lastMonthPassedDeals = lastMonthAnalyses.filter(analysis => 
+      analysis.analysis_result.pass_fail === "PASS"
+    ).length;
+    const lastMonthPassRate = lastMonthTotalDeals > 0 ? (lastMonthPassedDeals / lastMonthTotalDeals) * 100 : 0;
+    const lastMonthHoursSaved = lastMonthTotalDeals * 8;
+
+    // Calculate changes
+    return {
+      totalDeals,
+      averageDealSize,
+      passRate,
+      hoursSaved,
+      changes: {
+        totalDeals: currentMonthAnalyses.length,
+        averageDealSize: averageDealSize - lastMonthAverageDealSize,
+        passRate: passRate - lastMonthPassRate,
+        hoursSaved: currentMonthAnalyses.length * 8,
+      }
+    };
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -147,6 +236,8 @@ export default function DashboardPage() {
           if (response.ok) {
             const data = await response.json();
             setAnalyses(data);
+            // Calculate metrics from real data
+            setMetrics(calculateMetrics(data));
           } else {
             console.error("Failed to fetch analyses, status:", response.status);
             throw new Error(`HTTP ${response.status}`);
@@ -174,6 +265,8 @@ export default function DashboardPage() {
             created_at: deal.analyzedAt,
           }));
           setAnalyses(fallbackData);
+          // Calculate metrics from fallback data
+          setMetrics(calculateMetrics(fallbackData));
         } finally {
           setLoadingAnalyses(false);
         }
@@ -283,31 +376,31 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <MetricCard
             title="Total Deals Analyzed"
-            value={47}
-            change={12}
+            value={metrics.totalDeals}
+            change={metrics.changes.totalDeals}
             changeType="number"
             icon={<BarChart3 className="h-4 w-4" />}
           />
           <MetricCard
             title="Average Deal Size"
-            value={3200000}
-            change={150000}
+            value={metrics.averageDealSize}
+            change={metrics.changes.averageDealSize}
             changeType="currency"
             format="currency"
             icon={<DollarSign className="h-4 w-4" />}
           />
           <MetricCard
             title="Pass Rate"
-            value={34}
-            change={5}
+            value={metrics.passRate}
+            change={metrics.changes.passRate}
             changeType="percentage"
             format="percentage"
             icon={<TrendingUp className="h-4 w-4" />}
           />
           <MetricCard
             title="Hours Saved"
-            value={156}
-            change={24}
+            value={metrics.hoursSaved}
+            change={metrics.changes.hoursSaved}
             changeType="number"
             icon={<Clock className="h-4 w-4" />}
           />
