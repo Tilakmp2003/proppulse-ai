@@ -62,13 +62,15 @@ class InvestmentCriteria(BaseModel):
     requireUpdatedSystems: bool = False
     allowValueAdd: bool = True
 
-# OTP Authentication Models
+# OTP Authentication Models  
 class OTPRequest(BaseModel):
     email: str
+    phone_number: Optional[str] = None
 
 class OTPVerification(BaseModel):
     email: str
     otp: str
+    phone_number: Optional[str] = None
 
 # In-memory storage for OTP codes (in production, use Redis or database)
 otp_storage = {}
@@ -76,6 +78,74 @@ otp_storage = {}
 def generate_otp() -> str:
     """Generate a 6-digit OTP code"""
     return str(random.randint(100000, 999999))
+
+def send_sms_otp_verify(phone_number: str) -> dict:
+    """Send OTP via SMS using Twilio Verify Service (Professional)"""
+    try:
+        # Import Twilio client
+        from twilio.rest import Client
+        
+        # Validate Twilio Verify configuration
+        if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_VERIFY_SERVICE_SID]):
+            print("Twilio Verify configuration missing - falling back to display OTP")
+            return {"success": False, "error": "Twilio Verify not configured"}
+        
+        # Create Twilio client
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        
+        # Format phone number (ensure it starts with +)
+        if not phone_number.startswith('+'):
+            phone_number = '+91' + phone_number.replace('-', '').replace('(', '').replace(')', '').replace(' ', '')
+        
+        # Send verification using Twilio Verify Service
+        verification = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                                      .verifications \
+                                      .create(to=phone_number, channel='sms')
+        
+        print(f"Twilio Verify SMS sent successfully to {phone_number}")
+        print(f"Verification SID: {verification.sid}, Status: {verification.status}")
+        
+        return {
+            "success": True, 
+            "sid": verification.sid, 
+            "status": verification.status,
+            "phone": phone_number
+        }
+        
+    except Exception as e:
+        print(f"Twilio Verify SMS sending failed: {e}")
+        return {"success": False, "error": str(e)}
+
+def verify_sms_otp(phone_number: str, code: str) -> dict:
+    """Verify OTP using Twilio Verify Service"""
+    try:
+        from twilio.rest import Client
+        
+        if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_VERIFY_SERVICE_SID]):
+            return {"success": False, "error": "Twilio Verify not configured"}
+        
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        
+        # Format phone number
+        if not phone_number.startswith('+'):
+            phone_number = '+91' + phone_number.replace('-', '').replace('(', '').replace(')', '').replace(' ', '')
+        
+        # Verify the code
+        verification_check = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                                           .verification_checks \
+                                           .create(to=phone_number, code=code)
+        
+        print(f"Twilio Verify check: {verification_check.status} for {phone_number}")
+        
+        return {
+            "success": verification_check.status == "approved",
+            "status": verification_check.status,
+            "phone": phone_number
+        }
+        
+    except Exception as e:
+        print(f"Twilio Verify check failed: {e}")
+        return {"success": False, "error": str(e)}
 
 def send_otp_email(email: str, otp: str) -> bool:
     """Send OTP via email using SMTP with Railway-compatible settings"""
@@ -615,19 +685,53 @@ async def generate_sample_data():
 # OTP Authentication Endpoints
 @app.post("/auth/send-otp")
 async def send_otp(request: OTPRequest):
-    """Send OTP code to user's email"""
+    """Send OTP code via Twilio Verify SMS or email fallback"""
     try:
-        # Generate OTP
+        # Try Twilio Verify SMS first if phone number provided
+        if request.phone_number:
+            try:
+                # Use timeout for SMS sending
+                import asyncio
+                from concurrent.futures import ThreadPoolExecutor
+                
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(send_sms_otp_verify, request.phone_number)
+                    # Wait max 10 seconds for SMS sending
+                    sms_result = future.result(timeout=10)
+                    
+                if sms_result["success"]:
+                    # Store phone number for verification
+                    otp_storage[request.email] = {
+                        "phone_number": request.phone_number,
+                        "method": "twilio_verify",
+                        "expires_at": datetime.utcnow() + timedelta(minutes=10)
+                    }
+                    return {
+                        "message": "OTP sent successfully to your phone via SMS.", 
+                        "success": True, 
+                        "method": "sms",
+                        "phone": sms_result.get("phone")
+                    }
+                else:
+                    # SMS failed, try email fallback
+                    print(f"Twilio Verify SMS failed: {sms_result.get('error')}")
+                    
+            except Exception as sms_error:
+                print(f"Twilio Verify SMS error: {sms_error}")
+                # Continue to email fallback
+        
+        # Generate traditional OTP for email fallback
         otp = generate_otp()
         
         # Store OTP with expiration (10 minutes)
         expiration = datetime.utcnow() + timedelta(minutes=10)
         otp_storage[request.email] = {
             "otp": otp,
+            "method": "email",
             "expires_at": expiration
         }
         
-        # Send OTP via email with timeout protection
+        # Email fallback (existing implementation)
         try:
             # Use a timeout to prevent hanging
             import asyncio
@@ -639,40 +743,78 @@ async def send_otp(request: OTPRequest):
                 email_sent = future.result(timeout=5)
                 
             if email_sent:
-                return {"message": "OTP sent successfully to your email.", "success": True}
+                return {"message": "OTP sent successfully to your email.", "success": True, "method": "email"}
             else:
-                # Email failed, return OTP in response for development
-                return {"message": f"Email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp}
+                # Both SMS and email failed, display OTP for user
+                return {"message": f"SMS and email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp, "method": "display"}
                 
         except Exception as email_error:
             print(f"Email sending error: {email_error}")
-            # Email failed, return OTP in response for development  
-            return {"message": f"Email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp}
+            # Both SMS and email failed, display OTP for user
+            return {"message": f"SMS and email delivery failed. Your OTP code is: {otp}", "success": True, "otp": otp, "method": "display"}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send OTP: {str(e)}")
 
 @app.post("/auth/verify-otp")
 async def verify_otp(request: OTPVerification):
-    """Verify OTP code"""
+    """Verify OTP code - supports both Twilio Verify and traditional OTP"""
     try:
         # Check if OTP exists for email
         if request.email not in otp_storage:
             raise HTTPException(status_code=400, detail="No OTP found for this email")
         
-        stored_otp_data = otp_storage[request.email]
+        stored_data = otp_storage[request.email]
         
         # Check if OTP has expired
-        if datetime.utcnow() > stored_otp_data["expires_at"]:
+        if datetime.utcnow() > stored_data["expires_at"]:
             del otp_storage[request.email]
             raise HTTPException(status_code=400, detail="OTP has expired")
         
-        # Verify OTP
-        if request.otp != stored_otp_data["otp"]:
-            raise HTTPException(status_code=400, detail="Invalid OTP")
+        # Handle Twilio Verify verification
+        if stored_data.get("method") == "twilio_verify":
+            if not request.phone_number:
+                raise HTTPException(status_code=400, detail="Phone number required for Twilio Verify")
+            
+            try:
+                # Use Twilio Verify to check the code
+                import asyncio
+                from concurrent.futures import ThreadPoolExecutor
+                
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(verify_sms_otp, request.phone_number, request.otp)
+                    verification_result = future.result(timeout=10)
+                
+                if verification_result["success"]:
+                    # Verification successful, remove from storage
+                    del otp_storage[request.email]
+                    return {
+                        "message": "SMS OTP verified successfully", 
+                        "success": True,
+                        "method": "twilio_verify"
+                    }
+                else:
+                    raise HTTPException(status_code=400, detail=f"SMS OTP verification failed: {verification_result.get('error', 'Invalid code')}")
+                    
+            except Exception as verify_error:
+                print(f"Twilio Verify error: {verify_error}")
+                raise HTTPException(status_code=500, detail="SMS verification failed")
         
-        # OTP is valid, remove it from storage
-        del otp_storage[request.email]
+        # Handle traditional email OTP verification
+        elif stored_data.get("method") == "email":
+            if request.otp != stored_data["otp"]:
+                raise HTTPException(status_code=400, detail="Invalid OTP")
+            
+            # OTP is valid, remove it from storage
+            del otp_storage[request.email]
+            return {
+                "message": "Email OTP verified successfully", 
+                "success": True,
+                "method": "email"
+            }
+        
+        else:
+            raise HTTPException(status_code=400, detail="Unknown OTP method")
         
         return {
             "message": "OTP verified successfully",

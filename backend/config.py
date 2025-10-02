@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     SMTP_EMAIL: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     
+    # Twilio SMS Configuration
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None
+    TWILIO_VERIFY_SERVICE_SID: Optional[str] = None
+    
     # External APIs
     COSTAR_API_KEY: Optional[str] = None
     ZILLOW_API_KEY: Optional[str] = None
