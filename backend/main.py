@@ -149,12 +149,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware - Allow all origins for production deployment
+# CORS middleware - Allow frontend domains for production deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins - needed for Vercel deployments
-    allow_credentials=False,  # Must be False when allow_origins=["*"]
-    allow_methods=["*"],
+    allow_origins=[
+        "https://proppulse-ai.vercel.app",  # Production frontend
+        "https://proppulse-7q5ai8h8l-tilakmp2003s-projects.vercel.app",  # Vercel preview deployments
+        "http://localhost:3000",  # Local development
+        "http://localhost:3001",  # Local development alternative port
+        "*"  # Fallback for other domains
+    ],
+    allow_credentials=True,  # Allow credentials for authenticated requests
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -691,8 +697,7 @@ async def quick_property_analysis(request: dict):
                         "notes": "⚠️ ESTIMATES ONLY - Based on address analysis when real data unavailable"
                     }
                 },
-                "neighborhood_info": property_data.get("neighborhood_data", {}),
-                "neighborhood_data": property_data.get("neighborhood_data", {}),
+                "neighborhood_info": property_data.get("neighborhood_info", {}),
                 "demographics": property_data.get("demographics", {}),
                 "location_info": property_data.get("location_info", {}),
                 "data_sources": property_data.get("data_sources", []),
