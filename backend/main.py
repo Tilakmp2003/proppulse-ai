@@ -80,8 +80,9 @@ def generate_otp() -> str:
 def send_otp_email(email: str, otp: str) -> bool:
     """Send OTP via email using SMTP with Railway-compatible settings"""
     try:
-        # Print OTP to console for development and Railway logs
+        # Always print OTP to console for Railway logs (visible in Railway dashboard)
         print(f"=== OTP for {email}: {otp} ===")
+        print(f"=== Railway Logs: Check Railway dashboard for OTP ===")
         
         # Get email configuration from settings
         smtp_server = settings.SMTP_SERVER
@@ -91,7 +92,8 @@ def send_otp_email(email: str, otp: str) -> bool:
         
         # If email credentials are not configured, only print to console
         if not sender_email or not sender_password or sender_password == "demo_password":
-            print("Email credentials not configured. OTP printed to console only.")
+            print("Email credentials not configured. OTP printed to Railway logs only.")
+            print(f"Login with OTP: {otp}")
             return True
         
         # Try different SMTP configurations for Railway compatibility
@@ -625,11 +627,25 @@ async def send_otp(request: OTPRequest):
             "expires_at": expiration
         }
         
-        # Send OTP via email
-        if send_otp_email(request.email, otp):
-            return {"message": "OTP sent successfully", "success": True}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to send OTP")
+        # Send OTP via email with timeout protection
+        try:
+            # Use a timeout to prevent hanging
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+            
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(send_otp_email, request.email, otp)
+                # Wait max 5 seconds for email sending
+                email_sent = future.result(timeout=5)
+                
+            if email_sent:
+                return {"message": "OTP sent successfully. Check Railway logs if email delivery fails.", "success": True}
+            else:
+                return {"message": "OTP generated but email sending failed. Check Railway logs for the OTP code.", "success": True}
+                
+        except Exception as email_error:
+            print(f"Email sending error: {email_error}")
+            return {"message": f"OTP generated: {otp}. Email sending failed. Use this OTP to login.", "success": True}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send OTP: {str(e)}")

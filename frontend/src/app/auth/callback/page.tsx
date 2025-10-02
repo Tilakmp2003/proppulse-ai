@@ -14,7 +14,7 @@ export default function AuthCallback() {
       try {
         // Handle the auth callback from email confirmation
         const { data, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.error("Auth callback error:", error);
           // Redirect to login with error
