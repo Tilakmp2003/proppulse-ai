@@ -1,0 +1,26 @@
+# Ignore frontend files for backend deployment
+frontend/
+src/
+node_modules/
+.next/
+package.json
+package-lock.json
+next.config.*
+tsconfig.json
+tailwind.config.*
+postcss.config.*
+.env.local
+vercel.json
+
+# Ignore documentation
+*.md
+!backend/README.md
+
+# Ignore test files
+test_*
+*_test.*
+
+# Ignore development files
+.git/
+.DS_Store
+*.log
