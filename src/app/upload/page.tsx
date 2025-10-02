@@ -125,29 +125,11 @@ export default function UploadPage() {
             </CardContent>
           </Card>
 
-          {/* Sample addresses for demo */}
+          {/* Real Address Examples */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-gray-600 mb-4">
-              Try these sample addresses:
+            <p className="text-sm text-gray-600">
+              Enter any valid US property address to begin analysis with real ATTOM data
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {[
-                "1234 Commerce St, Austin, TX 78701",
-                "456 Oak Avenue, Dallas, TX 75201",
-                "789 Pine Street, Houston, TX 77002",
-              ].map((address) => (
-                <Button
-                  key={address}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPropertyAddress(address)}
-                  disabled={loading}
-                  className="text-xs"
-                >
-                  {address}
-                </Button>
-              ))}
-            </div>
           </div>
         </div>
       </div>

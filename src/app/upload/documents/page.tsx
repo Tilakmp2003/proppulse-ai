@@ -8,46 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UploadBox } from "@/components/ui/upload-box";
 import { Building, MapPin, Users, DollarSign, Calendar } from "lucide-react";
 
-// Mock property data based on address
-const mockPropertyData = {
-  "1234 Commerce St, Austin, TX 78701": {
-    address: "1234 Commerce St, Austin, TX 78701",
-    propertyType: "Multifamily",
-    units: 48,
-    yearBuilt: 1985,
-    squareFootage: 45600,
-    askingPrice: 2850000,
-    marketValue: 2950000,
-    neighborhood: "Downtown Austin",
-    walkScore: 89,
-    dataQuality: null,
-  },
-  "456 Oak Avenue, Dallas, TX 75201": {
-    address: "456 Oak Avenue, Dallas, TX 75201",
-    propertyType: "Multifamily",
-    units: 64,
-    yearBuilt: 1992,
-    squareFootage: 58400,
-    askingPrice: 3200000,
-    marketValue: 3350000,
-    neighborhood: "Deep Ellum",
-    walkScore: 76,
-    dataQuality: null,
-  },
-  "789 Pine Street, Houston, TX 77002": {
-    address: "789 Pine Street, Houston, TX 77002",
-    propertyType: "Multifamily",
-    units: 32,
-    yearBuilt: 1978,
-    squareFootage: 28800,
-    askingPrice: 1850000,
-    marketValue: 1920000,
-    neighborhood: "Midtown",
-    walkScore: 82,
-    dataQuality: null,
-  },
-};
-
 function DocumentsUploadContent() {
   const [t12File, setT12File] = useState<File | null>(null);
   const [rentRollFile, setRentRollFile] = useState<File | null>(null);
@@ -131,7 +91,7 @@ function DocumentsUploadContent() {
     }
   };
 
-  // Use real property data if available, otherwise fall back to mock data
+  // Use only real property data - no fallback to mock data
   const propertyData = realPropertyData
     ? {
         address: realPropertyData.property_address,
@@ -156,18 +116,7 @@ function DocumentsUploadContent() {
         dataQuality:
           realPropertyData.analysis_result?.market_data?.data_quality,
       }
-    : mockPropertyData[address as keyof typeof mockPropertyData] || {
-        address,
-        propertyType: null,
-        units: null,
-        yearBuilt: null,
-        squareFootage: null,
-        askingPrice: null,
-        marketValue: null,
-        neighborhood: null,
-        walkScore: null,
-        dataQuality: null,
-      };
+    : null; // No fallback - only show real data
 
   const handleContinueToAnalysis = async () => {
     if (!t12File || !rentRollFile) return;
@@ -292,54 +241,72 @@ function DocumentsUploadContent() {
       </div>
 
       {/* Property Overview */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Building className="h-5 w-5" />
-            <span>Property Overview</span>
-          </CardTitle>
-          {/* Data Quality Indicator */}
-          {propertyData.dataQuality && (
-            <div className="mt-2">
-              {propertyData.dataQuality?.is_estimated_data ? (
-                <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-                  <svg
-                    className="h-4 w-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium">
-                    Estimated Data -{" "}
-                    {propertyData.dataQuality?.notes ||
-                      "Limited data available"}
-                  </span>
-                </div>
-              ) : propertyData.dataQuality?.is_free_data ? (
-                <div className="flex items-center space-x-2 text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-                  <svg
-                    className="h-4 w-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium">
-                    Real Data from Free Public Sources
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          )}
+      {propertyData ? (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Building className="h-5 w-5" />
+              <span>Property Overview</span>
+            </CardTitle>
+            {/* Data Quality Indicator - Only for real ATTOM data */}
+            {propertyData.dataQuality && (
+              <div className="mt-2">
+                {propertyData.dataQuality?.is_estimated_data ? (
+                  <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium">
+                      Estimated Data -{" "}
+                      {propertyData.dataQuality?.notes ||
+                        "Limited data available"}
+                    </span>
+                  </div>
+                ) : propertyData.dataQuality?.is_free_data ? (
+                  <div className="flex items-center space-x-2 text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium">
+                      Real Data from ATTOM Database
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium">
+                      Verified ATTOM Property Data
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -424,6 +391,30 @@ function DocumentsUploadContent() {
           </div>
         </CardContent>
       </Card>
+      ) : (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Building className="h-5 w-5" />
+              <span>Property Overview</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No Property Data Available
+              </h3>
+              <p className="text-gray-600">
+                {fetchingPropertyData 
+                  ? "Loading property information from ATTOM database..."
+                  : "Property not found in ATTOM database. Please verify the address and try again."
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Document Upload Section */}
       <div className="mb-8">

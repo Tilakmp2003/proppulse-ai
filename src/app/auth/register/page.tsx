@@ -21,6 +21,7 @@ export default function RegisterPage() {
     lastName: "",
     company: "",
     email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -59,6 +60,7 @@ export default function RegisterPage() {
         first_name: formData.firstName,
         last_name: formData.lastName,
         company: formData.company,
+        phone_number: formData.phoneNumber,
       });
 
       if (!result.success) {
@@ -163,6 +165,25 @@ export default function RegisterPage() {
                   autoComplete="email"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="phoneNumber" className="text-sm font-medium">
+                  Phone Number
+                </label>
+                <Input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  autoComplete="tel"
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Required for SMS verification codes
+                </p>
               </div>
 
               <div className="space-y-2">

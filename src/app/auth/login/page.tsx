@@ -19,6 +19,7 @@ import { Building2, Eye, EyeOff } from "lucide-react";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,7 +56,11 @@ export default function LoginPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, otp }),
+          body: JSON.stringify({ 
+            email,
+            otp,
+            phone_number: phoneNumber || undefined 
+          }),
         });
 
         const data = await response.json();
@@ -91,6 +96,11 @@ export default function LoginPage() {
       return;
     }
 
+    if (loginMethod === "otp" && !phoneNumber) {
+      setError("Please enter your phone number to receive SMS code");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -103,7 +113,10 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+          email,
+          phone_number: phoneNumber || null 
+        }),
       });
 
       const data = await response.json();
@@ -115,14 +128,19 @@ export default function LoginPage() {
         setLoginMethod("otp");
         setError("");
         
-        // Check if OTP is included in response (for development when email fails)
+        // Show appropriate message based on delivery method
         if (data.otp) {
+          // Fallback display method
           alert(
-            `Email delivery failed, but your OTP code is: ${data.otp}\n\nPlease enter this code below to login.`
+            `SMS delivery failed, but your OTP code is: ${data.otp}\n\nPlease enter this code below to login.`
+          );
+        } else if (data.method === "sms") {
+          alert(
+            "✅ 6-digit verification code sent to your phone! Please check your messages and enter the code below."
           );
         } else {
           alert(
-            "6-digit OTP code sent to your email! Please check your inbox and enter the code below."
+            "📧 6-digit verification code sent to your email as backup! Please check your inbox and enter the code below."
           );
         }
       }
@@ -212,7 +230,7 @@ export default function LoginPage() {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                Email Code
+                Phone Code
               </button>
             </div>
 
@@ -252,6 +270,26 @@ export default function LoginPage() {
                 />
               </div>
 
+              {loginMethod === "otp" && (
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="text-sm font-medium">
+                    Phone Number *
+                  </label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+1 (555) 123-4567"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    autoComplete="tel"
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    We'll send a 6-digit verification code to this number via SMS
+                  </p>
+                </div>
+              )}
+
               {loginMethod === "password" ? (
                 <div className="space-y-2">
                   <label htmlFor="password" className="text-sm font-medium">
@@ -285,16 +323,16 @@ export default function LoginPage() {
                   {!otpSent ? (
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">
-                        We'll send a 6-digit code to your email address.
+                        We'll send a 6-digit verification code to your phone via SMS.
                       </p>
                       <Button
                         type="button"
                         onClick={handleSendOTP}
-                        disabled={loading || !email}
+                        disabled={loading || !email || !phoneNumber}
                         className="w-full"
                         variant="outline"
                       >
-                        {loading ? "Sending..." : "Send Code"}
+                        {loading ? "Sending..." : "Send SMS Code"}
                       </Button>
                     </div>
                   ) : (
@@ -316,7 +354,7 @@ export default function LoginPage() {
                         className="text-center text-lg tracking-widest"
                       />
                       <p className="text-xs text-gray-500">
-                        Code sent to {email}
+                        Code sent to {phoneNumber || email}
                       </p>
                       <Button
                         type="button"

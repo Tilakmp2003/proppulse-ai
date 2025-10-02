@@ -1,0 +1,18 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/favicon.ico/route": "/favicon.ico",
+  "/analysis/results/[id]/page": "/analysis/results/[id]",
+  "/auth/callback/page": "/auth/callback",
+  "/analysis/results/page": "/analysis/results",
+  "/auth/confirm/page": "/auth/confirm",
+  "/auth/dev-login/page": "/auth/dev-login",
+  "/comparison/page": "/comparison",
+  "/page": "/",
+  "/integrations/page": "/integrations",
+  "/auth/register/page": "/auth/register",
+  "/settings/page": "/settings",
+  "/dashboard/page": "/dashboard",
+  "/auth/login/page": "/auth/login",
+  "/upload/documents/page": "/upload/documents",
+  "/upload/page": "/upload"
+}
