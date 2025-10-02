@@ -169,20 +169,32 @@ export default function RegisterPage() {
 
               <div className="space-y-2">
                 <label htmlFor="phoneNumber" className="text-sm font-medium">
-                  Phone Number
+                  Indian Mobile Number
                 </label>
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
                   type="tel"
-                  placeholder="+1 (555) 123-4567"
+                  placeholder="+91 98765 43210"
                   value={formData.phoneNumber}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, "");
+                    if (value.startsWith("91")) {
+                      value = "+" + value;
+                    } else if (value.startsWith("0")) {
+                      value = "+91" + value.substring(1);
+                    } else if (!value.startsWith("+91") && value.length > 0) {
+                      value = "+91" + value;
+                    }
+                    handleInputChange({
+                      target: { name: "phoneNumber", value }
+                    } as React.ChangeEvent<HTMLInputElement>);
+                  }}
                   autoComplete="tel"
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  Required for SMS verification codes
+                  Required for SMS verification. Enter your 10-digit Indian mobile number.
                 </p>
               </div>
 

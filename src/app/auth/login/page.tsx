@@ -273,19 +273,29 @@ export default function LoginPage() {
               {loginMethod === "otp" && (
                 <div className="space-y-2">
                   <label htmlFor="phone" className="text-sm font-medium">
-                    Phone Number *
+                    Indian Mobile Number *
                   </label>
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+91 98765 43210"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, "");
+                      if (value.startsWith("91")) {
+                        value = "+" + value;
+                      } else if (value.startsWith("0")) {
+                        value = "+91" + value.substring(1);
+                      } else if (!value.startsWith("+91") && value.length > 0) {
+                        value = "+91" + value;
+                      }
+                      setPhoneNumber(value);
+                    }}
                     autoComplete="tel"
                     required
                   />
                   <p className="text-xs text-gray-500">
-                    We'll send a 6-digit verification code to this number via SMS
+                    Enter your 10-digit Indian mobile number. SMS will be sent via Twilio.
                   </p>
                 </div>
               )}

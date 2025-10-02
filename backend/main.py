@@ -79,6 +79,21 @@ def generate_otp() -> str:
     """Generate a 6-digit OTP code"""
     return str(random.randint(100000, 999999))
 
+def format_indian_phone_number(phone_number: str) -> str:
+    """Format and validate Indian phone number"""
+    # Remove all non-digits
+    cleaned = ''.join(filter(str.isdigit, phone_number))
+    
+    # Handle different formats
+    if cleaned.startswith('91') and len(cleaned) == 12:
+        return '+' + cleaned
+    elif cleaned.startswith('0') and len(cleaned) == 11:
+        return '+91' + cleaned[1:]
+    elif len(cleaned) == 10:
+        return '+91' + cleaned
+    else:
+        raise ValueError(f"Invalid Indian phone number format: {phone_number}")
+
 def send_sms_otp_verify(phone_number: str) -> dict:
     """Send OTP via SMS using Twilio Verify Service (Professional)"""
     try:
@@ -93,23 +108,26 @@ def send_sms_otp_verify(phone_number: str) -> dict:
         # Create Twilio client
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         
-        # Format phone number (ensure it starts with +)
-        if not phone_number.startswith('+'):
-            phone_number = '+91' + phone_number.replace('-', '').replace('(', '').replace(')', '').replace(' ', '')
+        # Format and validate Indian phone number
+        try:
+            formatted_phone = format_indian_phone_number(phone_number)
+        except ValueError as e:
+            print(f"Phone number validation failed: {e}")
+            return {"success": False, "error": "Invalid Indian phone number format"}
         
         # Send verification using Twilio Verify Service
         verification = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
                                       .verifications \
-                                      .create(to=phone_number, channel='sms')
+                                      .create(to=formatted_phone, channel='sms')
         
-        print(f"Twilio Verify SMS sent successfully to {phone_number}")
+        print(f"Twilio Verify SMS sent successfully to {formatted_phone}")
         print(f"Verification SID: {verification.sid}, Status: {verification.status}")
         
         return {
             "success": True, 
             "sid": verification.sid, 
             "status": verification.status,
-            "phone": phone_number
+            "phone": formatted_phone
         }
         
     except Exception as e:
@@ -126,21 +144,24 @@ def verify_sms_otp(phone_number: str, code: str) -> dict:
         
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         
-        # Format phone number
-        if not phone_number.startswith('+'):
-            phone_number = '+91' + phone_number.replace('-', '').replace('(', '').replace(')', '').replace(' ', '')
+        # Format and validate Indian phone number
+        try:
+            formatted_phone = format_indian_phone_number(phone_number)
+        except ValueError as e:
+            print(f"Phone number validation failed: {e}")
+            return {"success": False, "error": "Invalid Indian phone number format"}
         
         # Verify the code
         verification_check = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
                                            .verification_checks \
-                                           .create(to=phone_number, code=code)
+                                           .create(to=formatted_phone, code=code)
         
-        print(f"Twilio Verify check: {verification_check.status} for {phone_number}")
+        print(f"Twilio Verify check: {verification_check.status} for {formatted_phone}")
         
         return {
             "success": verification_check.status == "approved",
             "status": verification_check.status,
-            "phone": phone_number
+            "phone": formatted_phone
         }
         
     except Exception as e:
