@@ -49,6 +49,19 @@ class ExternalAPIService:
         """
         self.logger.info(f"Fetching REAL property data for: {address}")
         
+        # Validate address format first
+        address_validation = self._validate_address_format(address)
+        if address_validation:
+            return {
+                "error": address_validation,
+                "address": address,
+                "data_quality": {
+                    "confidence": 0,
+                    "sources": [],
+                    "notes": f"Address validation failed: {address_validation}"
+                }
+            }
+        
         try:
             # Use the enhanced free property data service with ATTOM integration
             from services.free_property_apis import FreePropertyDataService
@@ -149,3 +162,28 @@ class ExternalAPIService:
         except Exception as e:
             self.logger.error(f"Error fetching property comps: {e}")
             return []
+
+    def _validate_address_format(self, address: str) -> str:
+        """
+        Validate address format to ensure it has necessary components
+        Returns error message if invalid, empty string if valid
+        """
+        import re
+        
+        address = address.strip()
+        
+        # Check if address has a house number (digits followed by space)
+        if not re.match(r'^\d+\s+', address):
+            return "Address must include a house number (e.g., '123 Main St, City, State ZIP')"
+        
+        # Check for basic components (should have at least 2 commas for city, state)
+        parts = address.split(',')
+        if len(parts) < 3:
+            return "Please include complete address: street, city, state, and ZIP code"
+        
+        # Check for state and ZIP in last part
+        last_part = parts[-1].strip()
+        if not re.search(r'\b[A-Z]{2}\s+\d{5}', last_part):
+            return "Please include state and ZIP code (e.g., 'CA 90210')"
+        
+        return ""  # Valid address

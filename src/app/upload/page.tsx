@@ -11,15 +11,50 @@ import { MapPin, Search } from "lucide-react";
 export default function UploadPage() {
   const [propertyAddress, setPropertyAddress] = useState("");
   const [loading, setLoading] = useState(false);
+  const [addressError, setAddressError] = useState("");
   const router = useRouter();
+
+  const validateAddress = (address: string): string => {
+    const trimmed = address.trim();
+    
+    // Check if address has a house number (digits followed by space)
+    const hasHouseNumber = /^\d+\s+/.test(trimmed);
+    
+    if (!hasHouseNumber) {
+      return "Address must include a house number (e.g., '123 Main St, City, State ZIP')";
+    }
+    
+    // Check for basic components
+    const parts = trimmed.split(',');
+    if (parts.length < 3) {
+      return "Please include street address, city, state, and ZIP code";
+    }
+    
+    // Check for state and ZIP in last part
+    const lastPart = parts[parts.length - 1].trim();
+    if (!/\b[A-Z]{2}\s+\d{5}/.test(lastPart)) {
+      return "Please include state and ZIP code (e.g., 'CA 90210')";
+    }
+    
+    return "";
+  };
+
+  const handleAddressChange = (value: string) => {
+    setPropertyAddress(value);
+    setAddressError("");
+  };
 
   const handleAnalyzeProperty = async () => {
     if (!propertyAddress.trim()) return;
 
-    setLoading(true);
+    // Validate address before proceeding
+    const validation = validateAddress(propertyAddress);
+    if (validation) {
+      setAddressError(validation);
+      return;
+    }
 
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setLoading(true);
 
     // Navigate to upload documents page with address
     router.push(
@@ -69,17 +104,32 @@ export default function UploadPage() {
                   <Input
                     id="address"
                     type="text"
-                    placeholder="123 Main Street, Austin, TX 78701"
+                    placeholder="1234 Main Street, Austin, TX 78701"
                     value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
-                    className="pl-10 text-lg py-6"
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    className={`pl-10 text-lg py-6 ${addressError ? 'border-red-500' : ''}`}
                     disabled={loading}
                   />
                 </div>
+                {addressError && (
+                  <p className="text-sm text-red-600 mt-1">
+                    {addressError}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">
-                  Include street address, city, state, and ZIP code for best
-                  results
+                  Include complete address with house number, street, city, state, and ZIP code
                 </p>
+                
+                {/* Address Examples */}
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-2">Example addresses:</p>
+                  <div className="space-y-1 text-xs text-blue-700">
+                    <div>✅ 1234 Sunset Blvd, Los Angeles, CA 90028</div>
+                    <div>✅ 5678 Market Street, San Francisco, CA 94102</div>
+                    <div>❌ Sunset Blvd, Los Angeles, CA (missing house number)</div>
+                    <div>❌ 1234 Sunset Blvd (missing city/state/ZIP)</div>
+                  </div>
+                </div>
               </div>
 
               <Button
