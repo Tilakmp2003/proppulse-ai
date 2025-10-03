@@ -1053,13 +1053,29 @@ async def quick_property_analysis(request: dict):
                     "market_value": int(property_data.get("asking_price", "0").replace("$", "").replace(",", "")) if property_data.get("asking_price") else 0,
                     "price_per_unit": 0,
                     "price_per_sqft": 0,
+                    # Add AI-enhanced neighborhood and walkability data
+                    "neighborhood": property_data.get("neighborhood", "Unknown"),
+                    "walk_score": property_data.get("walk_score", "Not available"),
+                    "walkability_notes": property_data.get("walkability_notes", ""),
+                    "neighborhood_description": property_data.get("neighborhood_description", "")
                 },
                 "market_data": {
                     "data_quality": data_quality
                 },
-                "neighborhood_info": property_data.get("neighborhood_info", {}),
+                "neighborhood_info": {
+                    "name": property_data.get("neighborhood", "Unknown"),
+                    "area_description": property_data.get("neighborhood", "Unknown"),
+                    "description": property_data.get("neighborhood_description", ""),
+                    "walk_score": property_data.get("walk_score", "Not available"),
+                    "estimated_walk_score": property_data.get("walk_score", "Not available"),
+                    "walkability_notes": property_data.get("walkability_notes", "")
+                },
                 "demographics": property_data.get("demographics", {}),
-                "location_info": property_data.get("location_info", {}),
+                "location_info": {
+                    "neighborhood": property_data.get("neighborhood", "Unknown"),
+                    "walk_score": property_data.get("walk_score", "Not available"),
+                    "walkability_analysis": property_data.get("walkability_notes", "")
+                },
                 "data_sources": data_sources,
                 "ai_analysis": "Quick property lookup using free data sources. Upload financial documents for comprehensive analysis.",
             },
