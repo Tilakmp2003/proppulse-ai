@@ -225,10 +225,35 @@ class ExternalAPIService:
     
     def _get_basic_property_estimates(self, address: str, force_estimation: bool = False) -> Optional[Dict[str, Any]]:
         """
-        REMOVED: No estimates allowed - only real ATTOM data
+        Generate basic property estimates for fallback when no real data available
         """
-        self.logger.warning(f"Property estimation disabled - only real data allowed for: {address}")
-        return None
+        try:
+            # Parse location from address for basic estimates
+            location_parts = address.split(",")
+            city = location_parts[1].strip() if len(location_parts) > 1 else "Unknown"
+            state = location_parts[2].strip().split()[0] if len(location_parts) > 2 else "Unknown"
+            
+            # Generate basic estimates based on location
+            basic_estimates = self._generate_basic_estimates(address, city, state)
+            
+            return {
+                "property_type": basic_estimates.get("property_type", "Residential"),
+                "units": basic_estimates.get("units", 1),
+                "square_footage": basic_estimates.get("building_area_sqft", 1800),
+                "year_built": basic_estimates.get("year_built", 1990),
+                "estimated_value": int(basic_estimates.get("asking_price", "0").replace("$", "").replace(",", "")) if basic_estimates.get("asking_price") else 500000,
+                "price_per_unit": 0,
+                "price_per_sqft": 0,
+                "data_quality": {
+                    "is_estimated_data": True,
+                    "confidence": 60,
+                    "sources": ["Address Analysis"],
+                    "notes": "Basic estimates from address analysis"
+                }
+            }
+        except Exception as e:
+            self.logger.error(f"Error generating basic estimates: {e}")
+            return None
 
     async def _get_gemini_property_estimation(self, address: str) -> Optional[Dict[str, Any]]:
         """
