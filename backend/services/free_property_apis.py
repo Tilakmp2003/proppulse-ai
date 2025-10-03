@@ -548,47 +548,74 @@ class FreePropertyDataService:
                 logger.warning("ATTOM API key not configured")
                 return {}
                 
-            # Format address for API
-            formatted_address = address.replace(" ", "+")
+            # Use the correct ATTOM property search endpoint
+            url = "https://search.onboard-apis.com/propertyapi/v1.0.0/property/address"
             
-            # First, try to get property details
-            url = "https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/detail"
+            # Parse address into components for ATTOM API
+            address_parts = [part.strip() for part in address.split(',')]
+            street_address = address_parts[0] if address_parts else address
+            city = address_parts[1] if len(address_parts) > 1 else ""
+            state_zip = address_parts[2] if len(address_parts) > 2 else ""
+            
             params = {
-                "address1": formatted_address
+                "address1": street_address,
+                "address2": f"{city}, {state_zip}".strip(", ")
             }
             
             headers = {
-                "apikey": self.attom_api_key,
-                "accept": "application/json"
+                "Accept": "application/json",
+                "apikey": self.attom_api_key
             }
             
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            logger.info(f"Calling ATTOM API with: {params}")
+            
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(url, params=params, headers=headers)
+                
+                logger.info(f"ATTOM API response status: {response.status_code}")
                 
                 if response.status_code == 200:
                     data = response.json()
                     
-                    if data.get("status", {}).get("code") == 0:
-                        property_info = data.get("property", [{}])[0]
-                        
-                        # Extract relevant property details
-                        result = {
-                            "attom_id": property_info.get("identifier", {}).get("attomId"),
-                            "property_type": self._map_attom_property_type(property_info.get("summary", {}).get("proptype")),
-                            "year_built": property_info.get("summary", {}).get("yearbuilt"),
-                            "bedrooms": property_info.get("building", {}).get("rooms", {}).get("beds"),
-                            "bathrooms": property_info.get("building", {}).get("rooms", {}).get("bathstotal"),
-                            "square_footage": property_info.get("building", {}).get("size", {}).get("universalsize"),
-                            "lot_size": property_info.get("lot", {}).get("lotsize2"),
-                            "data_source": "ATTOM Property API"
-                        }
-                        
-                        # Try to get assessed value
-                        await self._add_attom_valuation_data(result, property_info.get("identifier", {}).get("attomId"))
-                        
-                        return result
+                    if data.get("status", {}).get("code") == 0 and data.get("property"):
+                        properties = data.get("property", [])
+                        if properties:
+                            property_info = properties[0]  # Take first match
+                            
+                            # Extract relevant property details
+                            summary = property_info.get("summary", {})
+                            building = property_info.get("building", {})
+                            address_info = property_info.get("address", {})
+                            identifier = property_info.get("identifier", {})
+                            
+                            result = {
+                                "attom_id": identifier.get("attomId"),
+                                "address": address_info.get("oneLine", address),
+                                "property_type": self._map_attom_property_type(summary.get("proptype")),
+                                "year_built": summary.get("yearbuilt"),
+                                "bedrooms": building.get("rooms", {}).get("beds"),
+                                "bathrooms": building.get("rooms", {}).get("bathstotal"),
+                                "square_footage": building.get("size", {}).get("bldgsize"),
+                                "lot_size": property_info.get("lot", {}).get("lotsize2"),
+                                "units": building.get("units") or 1,
+                                "data_source": "ATTOM Data API"
+                            }
+                            
+                            # Try to get assessed value if attomId exists
+                            if result.get("attom_id"):
+                                await self._add_attom_valuation_data(result, result["attom_id"])
+                            
+                            logger.info(f"Successfully retrieved ATTOM data for: {address}")
+                            return result
                     else:
-                        logger.warning(f"ATTOM API error: {data.get('status', {}).get('msg')}")
+                        logger.warning(f"ATTOM API no results: {data.get('status', {}).get('msg', 'No properties found')}")
+                        
+                elif response.status_code == 401:
+                    logger.error("ATTOM API authentication failed - check API key")
+                elif response.status_code == 400:
+                    logger.warning(f"ATTOM API bad request: {response.text[:200]}")
+                else:
+                    logger.warning(f"ATTOM API error {response.status_code}: {response.text[:200]}")
             
         except Exception as e:
             logger.error(f"ATTOM API error: {e}")
